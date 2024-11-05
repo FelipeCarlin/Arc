@@ -9,6 +9,10 @@
 ::call "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
 call W:\_Tools\msvc\setup.bat
 
+:: Setup toolchain (powerpc-eabi)
+::call "W:\_Tools\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"
+set path=w:\_Tools\powerpc-eabi-tools-windows;%path%
+
 :: Setup misc project scripts
 set path=w:\Arc\arc\misc;%path%
 
