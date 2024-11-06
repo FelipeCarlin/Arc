@@ -25,59 +25,6 @@ typedef u32 b32;
 #define Maximum(a, b) a < b ? b : a
 
 
-void 
-PrintHexDump(u8 *Data, u32 Length)
-{
-    u32 Rows = (Length + 15) / 16;
-    u64 Address = 0;
-    for(u32 I = 0;
-        I < Rows;
-        ++I)
-    {
-        printf("0x%.8llx  ", Address);
-        
-        // Value column
-        u32 RowLength = Minimum(16, Length - I*16);
-        for(u32 J = 0;
-            J < RowLength;
-            ++J)
-        {
-            if(~J & 0b1)
-            {
-                printf(" ");
-            }
-            
-            u32 Index = I*16 + J;
-            u8 Value = Data[Index];
-            printf("%.2hhx", Value);
-        }
-        
-        // Spacing after value column
-        u32 BlankWidth = (16 - RowLength)*2 + (16 - RowLength)/2;
-        printf("%*s", BlankWidth, "");
-        printf("    ");
-        
-        // Ascii column
-        for(u32 J = 0;
-            J < RowLength;
-            ++J)
-        {
-            u32 Index = I*16 + J;
-            u8 Value = Data[Index];
-            
-            char Char = '.';
-            if(Value >= 32 && Value <= 126)
-            {
-                Char = Value;
-            }
-            
-            printf("%c", Char);
-        }
-        
-        printf("\n");
-    }
-}
-
 typedef struct loaded_file
 {
     char *Filename;
@@ -134,32 +81,133 @@ Win32ReadEntireFile(char *Filename)
     return Result;
 }
 
+
+void 
+PrintHexDump(u8 *Data, u32 Length)
+{
+    u32 Rows = (Length + 15) / 16;
+    u64 Address = 0;
+    for(u32 I = 0;
+        I < Rows;
+        ++I)
+    {
+        printf("0x%.8llx  ", Address);
+        
+        // Value column
+        u32 RowLength = Minimum(16, Length - I*16);
+        for(u32 J = 0;
+            J < RowLength;
+            ++J)
+        {
+            if(~J & 0b1)
+            {
+                printf(" ");
+            }
+            
+            u32 Index = I*16 + J;
+            u8 Value = Data[Index];
+            printf("%.2hhx", Value);
+        }
+        
+        // Spacing after value column
+        u32 BlankWidth = (16 - RowLength)*2 + (16 - RowLength)/2;
+        printf("%*s", BlankWidth, "");
+        printf("    ");
+        
+        // Ascii column
+        for(u32 J = 0;
+            J < RowLength;
+            ++J)
+        {
+            u32 Index = I*16 + J;
+            u8 Value = Data[Index];
+            
+            char Char = '.';
+            if(Value >= 32 && Value <= 126)
+            {
+                Char = Value;
+            }
+            
+            printf("%c", Char);
+        }
+        
+        printf("\n");
+        
+        Address += RowLength;
+    }
+}
+
 int main(int Argc, char **Argv)
 {
-    u8 Bytes[] = 
-    {
-        0x3A, 0x1F, 0xB2, 0x4D, 0x7E, 0x9A, 0xE5, 0x8C,
-        0x5B, 0x39, 0x6D, 0xA1, 0xC3, 0x2F, 0x84, 0x77,
-        0x9F, 0x42, 0xDA, 0x60, 0xB8, 0x1A, 0x53, 0xE9,
-        0x66, 0x30, 0xAF, 0x7C, 0xB4, 0x8E, 0x5F, 0xD2,
-        0x7B, 0xC1, 0xEA, 0x99, 0x4C, 0x12, 0xA7, 0x58,
-        0x83, 0x25, 0x91, 0x6F, 0xDE, 0x3B, 0x7A, 0x54,
-        0xCD, 0xA3, 0x1C, 0xF9, 0x72, 0x34, 0xBE, 0x8F,
-        0x4D, 0x0B, 0x9E, 0x61, 0xAF, 0x29, 0xB5, 0xD7,
-        0x19, 0x64, 0x82, 0xF4, 0x58, 0xAC, 0xE7, 0x3C,
-        0x2A, 0xD8, 0x90, 0x6B, 0xF2, 0x35, 0xA8, 0x4E,
-        0xC7, 0x1D, 0x9B, 0x74, 0x56, 0xE3, 0xBC, 0x08,
-        0xFA, 0x41, 0x93, 0x2E, 0xD1, 0x6C, 0xA5, 0xB0,
-        0x37, 0xFF, 0x80, 0x5D, 0x28, 0x9C, 0xEC, 0x72,
-        0x11, 0xB6, 0x5A, 0x8D, 0xC2, 0x04, 0xE8, 0x69,
-        0xB9, 0x30, //0x8A, 0x53, // 0xDD, 0x7F, 0x44, 0xF5,
-        //0x67, 0x22, 0x98, 0xCA, //0x4B, 0x2F, 0x7D, 0xAE,
-    };
-    u32 Length = sizeof(Bytes);
-    
     loaded_file File = Win32ReadEntireFile("simple.bin");
-    
     PrintHexDump((u8 *)File.Memory, (u32)File.Size);
     
-    printf("Hello world");
+    u32 InstructionCount = (u32)(File.Size/4);
+    //u32 InstructionCount = 1;
+    u64 Address = 0x80003000;
+    
+    for(u32 InstructionIndex = 0;
+        InstructionIndex < InstructionCount;
+        ++InstructionIndex)
+    {
+        u32 Instruction = *(u32 *)((u8 *)File.Memory + InstructionIndex*4);
+        Instruction = (((Instruction>>24)&0xff) | // move byte 3 to byte 0
+                       ((Instruction<<8)&0xff0000) | // move byte 1 to byte 2
+                       ((Instruction>>8)&0xff00) | // move byte 2 to byte 1
+                       ((Instruction<<24)&0xff000000)); // byte 0 to byte 3
+        
+        //u32 Instruction = 0x4bffffb5;
+        u8 Opcode = Instruction >> (32 - 6);
+        
+        // Printing
+        printf("0x%.8llx      ", Address);
+        
+        printf("%.8lx    ", Instruction);
+        
+        // Dissasembling
+        switch(Opcode)
+        {
+            case 18:
+            {
+                u8 AA = Instruction & 0b10 ? 1 : 0;
+                u8 LK = Instruction & 0b01 ? 1 : 0;
+                
+                s32 LI = Instruction & 0b00000011111111111111111111111100;
+                
+                if(LI & 0b00000010000000000000000000000000)
+                {
+                    LI |= 0b11111100000000000000000000000000;
+                }
+                
+                printf("b");
+                
+                if(LK)
+                {
+                    printf("l");
+                }
+                
+                if(AA)
+                {
+                    printf("a");
+                }
+                else
+                {
+                    LI = (s32)(Address + LI);
+                }
+                
+                printf("  0x%lx", LI);
+                
+            } break;
+            
+            default:
+            {
+                //Assert("Invalid opcode");
+            }
+        }
+        
+        int BH = 169;
+        
+        printf("\n");
+        Address += 4;
+    }
 }
