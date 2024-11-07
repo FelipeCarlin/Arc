@@ -137,6 +137,26 @@ PrintHexDump(u8 *Data, u32 Length)
     }
 }
 
+typedef struct d_format_data
+{
+    u32 RT;
+    u32 RA;
+    s32 D;
+} d_format_data;
+
+inline d_format_data
+ExtractInstructionDFormat(u32 Instruction)
+{
+    d_format_data Data = {0};
+    
+    Data.RT = (Instruction & 0b00000011111000000000000000000000) >> (32 - 11);
+    Data.RA = (Instruction & 0b00000000000111110000000000000000) >> (32 - 16);
+    
+    Data.D = (s32)(s16)(Instruction & 0xffff);
+    
+    return Data;
+}
+
 int main(int Argc, char **Argv)
 {
     loaded_file File = Win32ReadEntireFile("simple.bin");
@@ -167,6 +187,7 @@ int main(int Argc, char **Argv)
         // Dissasembling
         switch(Opcode)
         {
+            // branch I-form
             case 18:
             {
                 u8 AA = Instruction & 0b10 ? 1 : 0;
@@ -197,6 +218,28 @@ int main(int Argc, char **Argv)
                 
                 printf("  0x%lx", LI);
                 
+            } break;
+            
+            
+            case 32:
+            {
+                d_format_data Data = ExtractInstructionDFormat(Instruction);
+                
+                printf("lwz  r%d, %d(r%d)", Data.RT, Data.D, Data.RA);
+            } break;
+            
+            case 36:
+            {
+                d_format_data Data = ExtractInstructionDFormat(Instruction);
+                
+                printf("stw  r%d, %d(r%d)", Data.RT, Data.D, Data.RA);
+            } break;
+            
+            case 38:
+            {
+                d_format_data Data = ExtractInstructionDFormat(Instruction);
+                
+                printf("stb  r%d, %d(r%d)", Data.RT, Data.D, Data.RA);
             } break;
             
             default:
