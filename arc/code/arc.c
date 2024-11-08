@@ -144,18 +144,170 @@ typedef struct d_format_data
     s32 D;
 } d_format_data;
 
-inline d_format_data
-ExtractInstructionDFormat(u32 Instruction)
+inline void
+ExtractInstructionIFormat(char *Mnemonic, u32 Instruction, u64 Address)
 {
-    d_format_data Data = {0};
+    u8 AA = Instruction & 0b10 ? 1 : 0;
+    u8 LK = Instruction & 0b01 ? 1 : 0;
     
-    Data.RT = (Instruction & 0b00000011111000000000000000000000) >> (32 - 11);
-    Data.RA = (Instruction & 0b00000000000111110000000000000000) >> (32 - 16);
+    s32 LI = Instruction & 0b00000011111111111111111111111100;
     
-    Data.D = (s32)(s16)(Instruction & 0xffff);
+    if(LI & 0b00000010000000000000000000000000)
+    {
+        LI |= 0b11111100000000000000000000000000;
+    }
     
-    return Data;
+    printf(Mnemonic);
+    
+    if(LK)
+    {
+        printf("l");
+    }
+    
+    if(AA)
+    {
+        printf("a");
+    }
+    else
+    {
+        LI = (s32)(Address + LI);
+    }
+    
+    printf("  0x%lx", LI);
 }
+
+inline void
+ExtractInstructionBFormat(char *Mnemonic, u32 Instruction, u64 Address)
+{
+    u8 AA = Instruction & 0b10 ? 1 : 0;
+    u8 LK = Instruction & 0b01 ? 1 : 0;
+    
+    u32 BO = (Instruction & 0b00000011111000000000000000000000) >> (32 - 11);
+    u32 BI = (Instruction & 0b00000000000111110000000000000000) >> (32 - 16);
+    u32 BD = (Instruction & 0b00000000000000001111100000000000) >> (32 - 21);
+    
+    printf(Mnemonic);
+    
+    if(LK)
+    {
+        printf("l");
+    }
+    
+    if(AA)
+    {
+        printf("a");
+    }
+    else
+    {
+        //LI = (s32)(Address + LI);
+    }
+    
+    //printf("  0x%lx", LI);
+}
+
+inline void
+ExtractInstructionSCFormat(char *Mnemonic, u32 Instruction, u64 Address)
+{
+    u32 LEV = (Instruction & 0b00000000000000000000111111100000) >> (32 - 27);
+    
+    printf(Mnemonic);
+    if(LEV)
+    {
+        printf("  0x%lx", LEV);
+    }
+}
+
+inline void
+ExtractInstructionDFormat(char *Mnemonic, u32 Instruction)
+{
+    u32 RT = (Instruction & 0b00000011111000000000000000000000) >> (32 - 11);
+    u32 RA = (Instruction & 0b00000000000111110000000000000000) >> (32 - 16);
+    
+    s32 D = (s32)(s16)(Instruction & 0xffff);
+    
+    // Printing, probably should compress to separate function.
+    char *Format = "";
+    if(RT < 10)
+        Format = "%-6s r%d,  %d(r%d)";
+    else
+        Format = "%-6s r%d, %d(r%d)";
+    
+    printf(Format, Mnemonic, RT, D, RA);
+}
+
+inline void
+ExtractInstructionXFormat(char *Mnemonic, u32 Instruction)
+{
+    u32 RS = (Instruction & 0b00000011111000000000000000000000) >> (32 - 11);
+    u32 RA = (Instruction & 0b00000000000111110000000000000000) >> (32 - 16);
+    u32 RB = (Instruction & 0b00000000000000000111110000000000) >> (32 - 21);
+    
+    // Printing, probably should compress to separate function.
+    //
+    
+    // Extended mnemonics
+    u8 Opcode = Instruction >> (32 - 6);
+    u16 ExtendedOpcode = (Instruction >> (32 - 31)) & 0b1111111111;
+    if(Opcode == 31 && ExtendedOpcode == 444 &&
+       RS == RB)
+    {
+        char *Format = "%-6s r%d,  r%d";
+        
+        printf(Format, "mr", RA, RS);
+    }
+    else
+    {
+        char *Format = "%-6s r%d,  r%d,  r%d";
+        
+        printf(Format, Mnemonic, RA, RS, RB);
+    }
+}
+
+
+
+enum ppc_instruction_form
+{
+    None_Form,
+    
+    I_Form,
+    B_Form,
+    SC_Form,
+    
+    D_Form,
+    X_Form,
+};
+
+typedef struct ppc_instruction
+{
+    u16 Opcode;
+    char Mnemonic[8];
+    
+    u16 Form;
+    
+    u16 ExtendedOpcode;
+} ppc_instruction;
+
+global_variable ppc_instruction 
+InstructionSet[] = 
+{
+    {16, "bc", B_Form},
+    {17, "sc", SC_Form},
+    {18, "b", I_Form},
+    
+    {31, "or", X_Form, 444},
+    
+    {32, "lwz", D_Form},
+    {33, "lwzu", D_Form},
+    {34, "lbz", D_Form},
+    {35, "lbzu", D_Form},
+    
+    {36, "stw", D_Form},
+    {37, "stwu", D_Form},
+    {38, "stb", D_Form},
+    {39, "stbu", D_Form},
+};
+
+#define ArrayCount(A) (sizeof(A) / sizeof((A)[0]))
 
 int main(int Argc, char **Argv)
 {
@@ -178,6 +330,7 @@ int main(int Argc, char **Argv)
         
         //u32 Instruction = 0x4bffffb5;
         u8 Opcode = Instruction >> (32 - 6);
+        u16 ExtendedOpcode = (Instruction >> (32 - 31)) & 0b1111111111;
         
         // Printing
         printf("0x%.8llx      ", Address);
@@ -185,6 +338,43 @@ int main(int Argc, char **Argv)
         printf("%.8lx    ", Instruction);
         
         // Dissasembling
+        ppc_instruction *FormatInstruction = 0;
+        for(u32 SetIndex = 0;
+            SetIndex < ArrayCount(InstructionSet);
+            ++SetIndex)
+        {
+            ppc_instruction *TestFormatInst = InstructionSet + SetIndex;
+            
+            if(TestFormatInst->Opcode == Opcode &&
+               (TestFormatInst->Form != X_Form || TestFormatInst->ExtendedOpcode == ExtendedOpcode))
+            {
+                FormatInstruction = TestFormatInst;
+                break;
+            }
+        }
+        
+        if(FormatInstruction)
+        {
+            switch(FormatInstruction->Form)
+            {
+                case I_Form:
+                {
+                    ExtractInstructionIFormat(FormatInstruction->Mnemonic, Instruction, Address);
+                } break;
+                
+                case D_Form:
+                {
+                    ExtractInstructionDFormat(FormatInstruction->Mnemonic, Instruction);
+                } break;
+                
+                case X_Form:
+                {
+                    ExtractInstructionXFormat(FormatInstruction->Mnemonic, Instruction);
+                } break;
+            }
+        }
+        
+        /*
         switch(Opcode)
         {
             // branch I-form
@@ -223,23 +413,23 @@ int main(int Argc, char **Argv)
             
             case 32:
             {
-                d_format_data Data = ExtractInstructionDFormat(Instruction);
+                d_format_data Data = ExtractInstructionDFormat("lwz", Instruction);
                 
-                printf("lwz  r%d, %d(r%d)", Data.RT, Data.D, Data.RA);
+                //printf("lwz  r%d, %d(r%d)", Data.RT, Data.D, Data.RA);
             } break;
             
             case 36:
             {
-                d_format_data Data = ExtractInstructionDFormat(Instruction);
+                d_format_data Data = ExtractInstructionDFormat("stw", Instruction);
                 
-                printf("stw  r%d, %d(r%d)", Data.RT, Data.D, Data.RA);
+                //printf("stw  r%d, %d(r%d)", Data.RT, Data.D, Data.RA);
             } break;
             
             case 38:
             {
-                d_format_data Data = ExtractInstructionDFormat(Instruction);
+                d_format_data Data = ExtractInstructionDFormat("stb", Instruction);
                 
-                printf("stb  r%d, %d(r%d)", Data.RT, Data.D, Data.RA);
+                //printf("stb  r%d, %d(r%d)", Data.RT, Data.D, Data.RA);
             } break;
             
             default:
@@ -247,6 +437,7 @@ int main(int Argc, char **Argv)
                 //Assert("Invalid opcode");
             }
         }
+*/
         
         int BH = 169;
         

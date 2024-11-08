@@ -18,7 +18,7 @@ set CompilerFlags= %CompilerFlags% -DCOMPILER_MSVC
 
 :: GENERAL WARNING FLAGS
 set CompilerFlags= %CompilerFlags% -WX -W4
-set CompilerFlags= %CompilerFlags% -wd4201 -wd4100 -wd4189 -wd4505 -wd4456 -wd4706 -wd4200
+set CompilerFlags= %CompilerFlags% -wd4101 -wd4201 -wd4100 -wd4189 -wd4505 -wd4456 -wd4706 -wd4200
 
 
 :: OPTIMISATIONS AND SUCH
