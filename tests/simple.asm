@@ -11,6 +11,10 @@ square:
         mr 1,11
         blr
 main:
+	twui 12, -124
+
+	mulli 2,3,157
+
         stwu 1,-48(1)
         mflr 0
         stw 0,52(1)

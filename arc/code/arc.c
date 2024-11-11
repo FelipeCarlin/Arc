@@ -137,13 +137,6 @@ PrintHexDump(u8 *Data, u32 Length)
     }
 }
 
-typedef struct d_format_data
-{
-    u32 RT;
-    u32 RA;
-    s32 D;
-} d_format_data;
-
 inline void
 ExtractInstructionIFormat(char *Mnemonic, u32 Instruction, u64 Address)
 {
@@ -217,22 +210,41 @@ ExtractInstructionSCFormat(char *Mnemonic, u32 Instruction, u64 Address)
     }
 }
 
-inline void
+typedef struct d_format_data
+{
+    u8 OpCode;
+    
+    union
+    {
+        u8 RT;
+        u8 RS;
+        u8 TO;
+        u8 FRT;
+        u8 FRS;
+    };
+    
+    u32 RA;
+    
+    union
+    {
+        s32 D;
+        u32 UI;
+        s32 SI;
+    };
+    
+} d_format_data;
+
+inline d_format_data
 ExtractInstructionDFormat(char *Mnemonic, u32 Instruction)
 {
-    u32 RT = (Instruction & 0b00000011111000000000000000000000) >> (32 - 11);
-    u32 RA = (Instruction & 0b00000000000111110000000000000000) >> (32 - 16);
+    d_format_data Data = {};
     
-    s32 D = (s32)(s16)(Instruction & 0xffff);
+    Data.RT = (u8)((Instruction & 0b00000011111000000000000000000000) >> (32 - 11));
+    Data.RA = (u8)((Instruction & 0b00000000000111110000000000000000) >> (32 - 16));
     
-    // Printing, probably should compress to separate function.
-    char *Format = "";
-    if(RT < 10)
-        Format = "%-6s r%d,  %d(r%d)";
-    else
-        Format = "%-6s r%d, %d(r%d)";
+    Data.D = (s32)(s16)(Instruction & 0xffff);
     
-    printf(Format, Mnemonic, RT, D, RA);
+    return Data;
 }
 
 inline void
@@ -263,49 +275,34 @@ ExtractInstructionXFormat(char *Mnemonic, u32 Instruction)
     }
 }
 
-
-
-enum ppc_instruction_form
+internal void
+TrapDecoder(d_format_data *Data)
 {
-    None_Form,
+    char *ConditionSymbol = "";
+    switch(Data->TO)
+    {
+        case 0b10000: { ConditionSymbol = "lt"; } break;
+        case 0b10100: { ConditionSymbol = "le"; } break;
+        case 0b00100: { ConditionSymbol = "eq"; } break;
+        case 0b01100: { ConditionSymbol = "ge"; } break;
+        case 0b01000: { ConditionSymbol = "gt"; } break;
+        //case 0b00110: { ConditionSymbol = "nl"; } break;
+        case 0b11000: { ConditionSymbol = "ne"; } break;
+        //case 0b10100: { ConditionSymbol = "ng"; } break;
+        case 0b00010: { ConditionSymbol = "llt"; } break;
+        case 0b00110: { ConditionSymbol = "lle"; } break;
+        case 0b00101: { ConditionSymbol = "lge"; } break;
+        case 0b00001: { ConditionSymbol = "lgt"; } break;
+        //case 0b00101: { ConditionSymbol = "lnl"; } break;
+        //case 0b00110: { ConditionSymbol = "lng"; } break;
+        case 0b11111: { ConditionSymbol = "u"; } break;
+        //case 0b11111: { ConditionSymbol = ""; } break;
+    }
     
-    I_Form,
-    B_Form,
-    SC_Form,
-    
-    D_Form,
-    X_Form,
-};
+    printf("tw%si  r%d, %d", ConditionSymbol, Data->RA, Data->SI);
+}
 
-typedef struct ppc_instruction
-{
-    u16 Opcode;
-    char Mnemonic[8];
-    
-    u16 Form;
-    
-    u16 ExtendedOpcode;
-} ppc_instruction;
-
-global_variable ppc_instruction 
-InstructionSet[] = 
-{
-    {16, "bc", B_Form},
-    {17, "sc", SC_Form},
-    {18, "b", I_Form},
-    
-    {31, "or", X_Form, 444},
-    
-    {32, "lwz", D_Form},
-    {33, "lwzu", D_Form},
-    {34, "lbz", D_Form},
-    {35, "lbzu", D_Form},
-    
-    {36, "stw", D_Form},
-    {37, "stwu", D_Form},
-    {38, "stb", D_Form},
-    {39, "stbu", D_Form},
-};
+#include "ppc_instruction_set.h"
 
 #define ArrayCount(A) (sizeof(A) / sizeof((A)[0]))
 
@@ -357,14 +354,40 @@ int main(int Argc, char **Argv)
         {
             switch(FormatInstruction->Form)
             {
+                case D_Form:
+                {
+                    d_format_data Data = ExtractInstructionDFormat(FormatInstruction->Mnemonic, Instruction);
+                    
+                    if(FormatInstruction->CustomDecoding)
+                    {
+                        FormatInstruction->CustomDecoding(&Data);
+                    }
+                    else
+                    {
+                        char *Format = "";
+                        if(Data.RT < 10)
+                            Format = "%-6s r%d,  %d(r%d)";
+                        else
+                            Format = "%-6s r%d, %d(r%d)";
+                        
+                        printf(Format, FormatInstruction->Mnemonic, Data.RT, Data.D, Data.RA);
+                    }
+                    
+                    // Printing, probably should compress to separate function.
+                    if(Opcode == 3)
+                    {
+                        //
+                    }
+                    else if (Opcode == 7)
+                    {
+                        //printf("mulli");
+                    }
+                    
+                } break;
+                
                 case I_Form:
                 {
                     ExtractInstructionIFormat(FormatInstruction->Mnemonic, Instruction, Address);
-                } break;
-                
-                case D_Form:
-                {
-                    ExtractInstructionDFormat(FormatInstruction->Mnemonic, Instruction);
                 } break;
                 
                 case X_Form:
@@ -373,71 +396,6 @@ int main(int Argc, char **Argv)
                 } break;
             }
         }
-        
-        /*
-        switch(Opcode)
-        {
-            // branch I-form
-            case 18:
-            {
-                u8 AA = Instruction & 0b10 ? 1 : 0;
-                u8 LK = Instruction & 0b01 ? 1 : 0;
-                
-                s32 LI = Instruction & 0b00000011111111111111111111111100;
-                
-                if(LI & 0b00000010000000000000000000000000)
-                {
-                    LI |= 0b11111100000000000000000000000000;
-                }
-                
-                printf("b");
-                
-                if(LK)
-                {
-                    printf("l");
-                }
-                
-                if(AA)
-                {
-                    printf("a");
-                }
-                else
-                {
-                    LI = (s32)(Address + LI);
-                }
-                
-                printf("  0x%lx", LI);
-                
-            } break;
-            
-            
-            case 32:
-            {
-                d_format_data Data = ExtractInstructionDFormat("lwz", Instruction);
-                
-                //printf("lwz  r%d, %d(r%d)", Data.RT, Data.D, Data.RA);
-            } break;
-            
-            case 36:
-            {
-                d_format_data Data = ExtractInstructionDFormat("stw", Instruction);
-                
-                //printf("stw  r%d, %d(r%d)", Data.RT, Data.D, Data.RA);
-            } break;
-            
-            case 38:
-            {
-                d_format_data Data = ExtractInstructionDFormat("stb", Instruction);
-                
-                //printf("stb  r%d, %d(r%d)", Data.RT, Data.D, Data.RA);
-            } break;
-            
-            default:
-            {
-                //Assert("Invalid opcode");
-            }
-        }
-*/
         
         int BH = 169;
         
