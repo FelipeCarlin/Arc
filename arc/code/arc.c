@@ -137,83 +137,8 @@ PrintHexDump(u8 *Data, u32 Length)
     }
 }
 
-inline void
-ExtractInstructionIFormat(char *Mnemonic, u32 Instruction, u64 Address)
-{
-    u8 AA = Instruction & 0b10 ? 1 : 0;
-    u8 LK = Instruction & 0b01 ? 1 : 0;
-    
-    s32 LI = Instruction & 0b00000011111111111111111111111100;
-    
-    if(LI & 0b00000010000000000000000000000000)
-    {
-        LI |= 0b11111100000000000000000000000000;
-    }
-    
-    printf(Mnemonic);
-    
-    if(LK)
-    {
-        printf("l");
-    }
-    
-    if(AA)
-    {
-        printf("a");
-    }
-    else
-    {
-        LI = (s32)(Address + LI);
-    }
-    
-    printf("  0x%lx", LI);
-}
-
-inline void
-ExtractInstructionBFormat(char *Mnemonic, u32 Instruction, u64 Address)
-{
-    u8 AA = Instruction & 0b10 ? 1 : 0;
-    u8 LK = Instruction & 0b01 ? 1 : 0;
-    
-    u32 BO = (Instruction & 0b00000011111000000000000000000000) >> (32 - 11);
-    u32 BI = (Instruction & 0b00000000000111110000000000000000) >> (32 - 16);
-    u32 BD = (Instruction & 0b00000000000000001111100000000000) >> (32 - 21);
-    
-    printf(Mnemonic);
-    
-    if(LK)
-    {
-        printf("l");
-    }
-    
-    if(AA)
-    {
-        printf("a");
-    }
-    else
-    {
-        //LI = (s32)(Address + LI);
-    }
-    
-    //printf("  0x%lx", LI);
-}
-
-inline void
-ExtractInstructionSCFormat(char *Mnemonic, u32 Instruction, u64 Address)
-{
-    u32 LEV = (Instruction & 0b00000000000000000000111111100000) >> (32 - 27);
-    
-    printf(Mnemonic);
-    if(LEV)
-    {
-        printf("  0x%lx", LEV);
-    }
-}
-
 typedef struct d_format_data
 {
-    u8 OpCode;
-    
     union
     {
         u8 RT;
@@ -245,6 +170,68 @@ ExtractInstructionDFormat(char *Mnemonic, u32 Instruction)
     Data.D = (s32)(s16)(Instruction & 0xffff);
     
     return Data;
+}
+
+typedef struct i_format_data
+{
+    s32 LI;
+    u8 AA;
+    u8 LK;
+} i_format_data;
+
+inline i_format_data
+ExtractInstructionIFormat(u32 Instruction)
+{
+    i_format_data Data = {};
+    //Data = *(i_format_data *)&Instruction;
+    
+    Data.LI = (s32)((Instruction & 0b00000011111111111111111111111100) >> (32 - 32));
+    Data.AA = (u8)((Instruction & 0b00000000000000000000000000000010) >> (32 - 31));
+    Data.LK = (u8)((Instruction & 0b00000000000000000000000000000001) >> (32 - 32));
+    
+    if(Data.LI & 0b00000010000000000000000000000000)
+    {
+        Data.LI |= 0b11111100000000000000000000000000;
+    }
+    
+    return Data;
+}
+
+typedef struct b_format_data
+{
+    u32 BO;
+    u32 BI;
+    u32 BD;
+    
+    u8 AA;
+    u8 LK;
+} b_format_data;
+
+inline b_format_data
+ExtractInstructionBFormat(u32 Instruction)
+{
+    b_format_data Data = {};
+    
+    Data.BO = (Instruction & 0b00000011111000000000000000000000) >> (32 - 11);
+    Data.BI = (Instruction & 0b00000000000111110000000000000000) >> (32 - 16);
+    Data.BD = (Instruction & 0b00000000000000001111100000000000) >> (32 - 21);
+    
+    Data.AA = Instruction & 0b10 ? 1 : 0;
+    Data.LK = Instruction & 0b01 ? 1 : 0;
+    
+    return Data;
+}
+
+inline void
+ExtractInstructionSCFormat(char *Mnemonic, u32 Instruction, u64 Address)
+{
+    u32 LEV = (Instruction & 0b00000000000000000000111111100000) >> (32 - 27);
+    
+    printf(Mnemonic);
+    if(LEV)
+    {
+        printf("  0x%lx", LEV);
+    }
 }
 
 inline void
@@ -372,22 +359,56 @@ int main(int Argc, char **Argv)
                         
                         printf(Format, FormatInstruction->Mnemonic, Data.RT, Data.D, Data.RA);
                     }
-                    
-                    // Printing, probably should compress to separate function.
-                    if(Opcode == 3)
-                    {
-                        //
-                    }
-                    else if (Opcode == 7)
-                    {
-                        //printf("mulli");
-                    }
-                    
                 } break;
                 
                 case I_Form:
                 {
-                    ExtractInstructionIFormat(FormatInstruction->Mnemonic, Instruction, Address);
+                    i_format_data Data = ExtractInstructionIFormat(Instruction);
+                    
+                    printf(FormatInstruction->Mnemonic);
+                    
+                    s32 BranchAddress = Data.LI;
+                    if(Data.LK)
+                    {
+                        printf("l");
+                    }
+                    
+                    if(Data.AA)
+                    {
+                        printf("a");
+                    }
+                    else
+                    {
+                        BranchAddress = (s32)(BranchAddress + Address);
+                    }
+                    
+                    printf("  0x%lx", BranchAddress);
+                    
+                } break;
+                
+                case B_Form:
+                {
+                    b_format_data Data = ExtractInstructionBFormat(Instruction);
+                    
+                    printf(FormatInstruction->Mnemonic);
+                    
+                    
+                    s32 OperandAddress = Data.BD;
+                    if(Data.LK)
+                    {
+                        printf("l");
+                    }
+                    
+                    if(Data.AA)
+                    {
+                        printf("a");
+                    }
+                    else
+                    {
+                        OperandAddress = (s32)(OperandAddress + Address);
+                    }
+                    
+                    //printf("  0x%lx", LI);
                 } break;
                 
                 case X_Form:
