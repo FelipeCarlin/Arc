@@ -289,6 +289,15 @@ TrapDecoder(d_format_data *Data)
     printf("tw%si  r%d, %d", ConditionSymbol, Data->RA, Data->SI);
 }
 
+internal void
+CmpliDecoder(d_format_data *Data)
+{
+    u32 BF = (Data->RS & 0b11100) >> 2;
+    u32 L  = (Data->RS & 0b00001) >> 0;
+    
+    printf("cmpli r%d %d r%d, %d", BF, L, Data->RA, (u16)Data->UI);
+}
+
 #include "ppc_instruction_set.h"
 
 #define ArrayCount(A) (sizeof(A) / sizeof((A)[0]))
@@ -351,13 +360,8 @@ int main(int Argc, char **Argv)
                     }
                     else
                     {
-                        char *Format = "";
-                        if(Data.RT < 10)
-                            Format = "%-6s r%d,  %d(r%d)";
-                        else
-                            Format = "%-6s r%d, %d(r%d)";
-                        
-                        printf(Format, FormatInstruction->Mnemonic, Data.RT, Data.D, Data.RA);
+                        char *Format = "%-6s r%d,  r%d, %d";
+                        printf(Format, FormatInstruction->Mnemonic, Data.RT, Data.RA, Data.D);
                     }
                 } break;
                 

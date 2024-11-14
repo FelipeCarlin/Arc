@@ -31,6 +31,9 @@ InstructionSet[] =
     {3, "twi", D_Form, 0, TrapDecoder}, // TODO: Add extended mnemonics.
     
     {7, "mulli", D_Form},
+    {8, "subfic", D_Form},
+    
+    {10, "cmpli", D_Form, 0, CmpliDecoder},
     
     {16, "bc", B_Form},
     {17, "sc", SC_Form},
