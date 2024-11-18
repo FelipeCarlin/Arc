@@ -81,7 +81,6 @@ Win32ReadEntireFile(char *Filename)
     return Result;
 }
 
-
 void 
 PrintHexDump(u8 *Data, u32 Length)
 {
@@ -262,6 +261,37 @@ ExtractInstructionXFormat(char *Mnemonic, u32 Instruction)
     }
 }
 
+typedef struct xl_format_data
+{
+    u32 LK : 1;
+    u32 XO : 10;
+    u32 BB : 5;
+    u32 BA : 5;
+    u32 BT : 5;
+    u32 Opcode : 6;
+} xl_format_data;
+
+inline xl_format_data
+ExtractInstructionXLFormat(u32 Instruction)
+{
+    xl_format_data Data = *(xl_format_data *)&Instruction;
+    
+    u32 Size = sizeof(xl_format_data);
+    
+    u32 RS = (Instruction & 0b00000011111000000000000000000000) >> (32 - 11);
+    u32 RA = (Instruction & 0b00000000000111110000000000000000) >> (32 - 16);
+    u32 RB = (Instruction & 0b00000000000000000111110000000000) >> (32 - 21);
+    
+    // Printing, probably should compress to separate function.
+    //
+    
+    // Extended mnemonics
+    u8 Opcode = Instruction >> (32 - 6);
+    u16 ExtendedOpcode = (Instruction >> (32 - 31)) & 0b1111111111;
+    
+    return Data;
+}
+
 internal void
 TrapDecoder(d_format_data *Data)
 {
@@ -339,7 +369,7 @@ int main(int Argc, char **Argv)
             ppc_instruction *TestFormatInst = InstructionSet + SetIndex;
             
             if(TestFormatInst->Opcode == Opcode &&
-               (TestFormatInst->Form != X_Form || TestFormatInst->ExtendedOpcode == ExtendedOpcode))
+               (TestFormatInst->Form != XL_Form || TestFormatInst->ExtendedOpcode == ExtendedOpcode))
             {
                 FormatInstruction = TestFormatInst;
                 break;
@@ -417,7 +447,18 @@ int main(int Argc, char **Argv)
                 
                 case X_Form:
                 {
-                    ExtractInstructionXFormat(FormatInstruction->Mnemonic, Instruction);
+                    //ExtractInstructionXFormat(FormatInstruction->Mnemonic, Instruction);
+                } break;
+                
+                case XL_Form:
+                {
+                    //xl_format_data Data = ExtractInstructionXLFormat(Instruction);
+                    xl_format_data Data = *(xl_format_data *)&Instruction;
+                    
+                    char *Format = "%-6s %d, %d, %d";
+                    printf(Format, FormatInstruction->Mnemonic, Data.BT, Data.BA, Data.BB);
+                    
+                    //printf();
                 } break;
             }
         }
