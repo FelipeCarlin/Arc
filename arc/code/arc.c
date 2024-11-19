@@ -1,29 +1,5 @@
-#include <stdio.h>
-#include <windows.h>
 
-typedef signed char s8;
-typedef signed short s16;
-typedef signed long s32;
-typedef signed long long s64;
-
-typedef unsigned char u8;
-typedef unsigned short u16;
-typedef unsigned long u32;
-typedef unsigned long long u64;
-typedef u32 b32;
-
-#define internal static
-#define local_variable static
-#define global_variable static
-
-#define true 1
-#define false 0
-
-#define Assert(X) if(!(X)) {*(int *)0 = 0;}
-
-#define Minimum(a, b) a < b ? a : b
-#define Maximum(a, b) a < b ? b : a
-
+#include "arc.h"
 
 typedef struct loaded_file
 {
@@ -136,167 +112,15 @@ PrintHexDump(u8 *Data, u32 Length)
     }
 }
 
-typedef struct d_format_data
-{
-    union
-    {
-        u8 RT;
-        u8 RS;
-        u8 TO;
-        u8 FRT;
-        u8 FRS;
-    };
-    
-    u32 RA;
-    
-    union
-    {
-        s32 D;
-        u32 UI;
-        s32 SI;
-    };
-    
-} d_format_data;
-
-inline d_format_data
-ExtractInstructionDFormat(char *Mnemonic, u32 Instruction)
-{
-    d_format_data Data = {};
-    
-    Data.RT = (u8)((Instruction & 0b00000011111000000000000000000000) >> (32 - 11));
-    Data.RA = (u8)((Instruction & 0b00000000000111110000000000000000) >> (32 - 16));
-    
-    Data.D = (s32)(s16)(Instruction & 0xffff);
-    
-    return Data;
-}
-
-typedef struct i_format_data
-{
-    s32 LI;
-    u8 AA;
-    u8 LK;
-} i_format_data;
-
-inline i_format_data
-ExtractInstructionIFormat(u32 Instruction)
-{
-    i_format_data Data = {};
-    //Data = *(i_format_data *)&Instruction;
-    
-    Data.LI = (s32)((Instruction & 0b00000011111111111111111111111100) >> (32 - 32));
-    Data.AA = (u8)((Instruction & 0b00000000000000000000000000000010) >> (32 - 31));
-    Data.LK = (u8)((Instruction & 0b00000000000000000000000000000001) >> (32 - 32));
-    
-    if(Data.LI & 0b00000010000000000000000000000000)
-    {
-        Data.LI |= 0b11111100000000000000000000000000;
-    }
-    
-    return Data;
-}
-
-typedef struct b_format_data
-{
-    u32 BO;
-    u32 BI;
-    u32 BD;
-    
-    u8 AA;
-    u8 LK;
-} b_format_data;
-
-inline b_format_data
-ExtractInstructionBFormat(u32 Instruction)
-{
-    b_format_data Data = {};
-    
-    Data.BO = (Instruction & 0b00000011111000000000000000000000) >> (32 - 11);
-    Data.BI = (Instruction & 0b00000000000111110000000000000000) >> (32 - 16);
-    Data.BD = (Instruction & 0b00000000000000001111100000000000) >> (32 - 21);
-    
-    Data.AA = Instruction & 0b10 ? 1 : 0;
-    Data.LK = Instruction & 0b01 ? 1 : 0;
-    
-    return Data;
-}
-
-inline void
-ExtractInstructionSCFormat(char *Mnemonic, u32 Instruction, u64 Address)
-{
-    u32 LEV = (Instruction & 0b00000000000000000000111111100000) >> (32 - 27);
-    
-    printf(Mnemonic);
-    if(LEV)
-    {
-        printf("  0x%lx", LEV);
-    }
-}
-
-inline void
-ExtractInstructionXFormat(char *Mnemonic, u32 Instruction)
-{
-    u32 RS = (Instruction & 0b00000011111000000000000000000000) >> (32 - 11);
-    u32 RA = (Instruction & 0b00000000000111110000000000000000) >> (32 - 16);
-    u32 RB = (Instruction & 0b00000000000000000111110000000000) >> (32 - 21);
-    
-    // Printing, probably should compress to separate function.
-    //
-    
-    // Extended mnemonics
-    u8 Opcode = Instruction >> (32 - 6);
-    u16 ExtendedOpcode = (Instruction >> (32 - 31)) & 0b1111111111;
-    if(Opcode == 31 && ExtendedOpcode == 444 &&
-       RS == RB)
-    {
-        char *Format = "%-6s r%d,  r%d";
-        
-        printf(Format, "mr", RA, RS);
-    }
-    else
-    {
-        char *Format = "%-6s r%d,  r%d,  r%d";
-        
-        printf(Format, Mnemonic, RA, RS, RB);
-    }
-}
-
-typedef struct xl_format_data
-{
-    u32 LK : 1;
-    u32 XO : 10;
-    u32 BB : 5;
-    u32 BA : 5;
-    u32 BT : 5;
-    u32 Opcode : 6;
-} xl_format_data;
-
-inline xl_format_data
-ExtractInstructionXLFormat(u32 Instruction)
-{
-    xl_format_data Data = *(xl_format_data *)&Instruction;
-    
-    u32 Size = sizeof(xl_format_data);
-    
-    u32 RS = (Instruction & 0b00000011111000000000000000000000) >> (32 - 11);
-    u32 RA = (Instruction & 0b00000000000111110000000000000000) >> (32 - 16);
-    u32 RB = (Instruction & 0b00000000000000000111110000000000) >> (32 - 21);
-    
-    // Printing, probably should compress to separate function.
-    //
-    
-    // Extended mnemonics
-    u8 Opcode = Instruction >> (32 - 6);
-    u16 ExtendedOpcode = (Instruction >> (32 - 31)) & 0b1111111111;
-    
-    return Data;
-}
+#include "ppc_encoding.h"
+#include "ppc_instruction_set.h"
 
 internal void
-TrapDecoder(d_format_data *Data)
+TrapDecoder(d_format_data Data)
 {
     char *ConditionSymbol = "";
-    switch(Data->TO)
+    //switch(Data.TO)
+    switch(Data.RT)
     {
         case 0b10000: { ConditionSymbol = "lt"; } break;
         case 0b10100: { ConditionSymbol = "le"; } break;
@@ -316,21 +140,18 @@ TrapDecoder(d_format_data *Data)
         //case 0b11111: { ConditionSymbol = ""; } break;
     }
     
-    printf("tw%si  r%d, %d", ConditionSymbol, Data->RA, Data->SI);
+    //printf("tw%si  r%d, %d", ConditionSymbol, Data.RA, Data.SI);
+    printf("tw%si  r%d, %d", ConditionSymbol, Data.RA, Data.D);
 }
 
 internal void
 CmpliDecoder(d_format_data *Data)
 {
-    u32 BF = (Data->RS & 0b11100) >> 2;
-    u32 L  = (Data->RS & 0b00001) >> 0;
+    //u32 BF = (Data->RS & 0b11100) >> 2;
+    //u32 L  = (Data->RS & 0b00001) >> 0;
     
-    printf("cmpli r%d %d r%d, %d", BF, L, Data->RA, (u16)Data->UI);
+    //printf("cmpli r%d %d r%d, %d", BF, L, Data->RA, (u16)Data->UI);
 }
-
-#include "ppc_instruction_set.h"
-
-#define ArrayCount(A) (sizeof(A) / sizeof((A)[0]))
 
 int main(int Argc, char **Argv)
 {
@@ -382,7 +203,7 @@ int main(int Argc, char **Argv)
             {
                 case D_Form:
                 {
-                    d_format_data Data = ExtractInstructionDFormat(FormatInstruction->Mnemonic, Instruction);
+                    d_format_data Data = *(d_format_data *)&Instruction;
                     
                     if(FormatInstruction->CustomDecoding)
                     {
@@ -397,7 +218,7 @@ int main(int Argc, char **Argv)
                 
                 case I_Form:
                 {
-                    i_format_data Data = ExtractInstructionIFormat(Instruction);
+                    i_format_data Data = *(i_format_data *)&Instruction;
                     
                     printf(FormatInstruction->Mnemonic);
                     
@@ -417,15 +238,13 @@ int main(int Argc, char **Argv)
                     }
                     
                     printf("  0x%lx", BranchAddress);
-                    
                 } break;
                 
                 case B_Form:
                 {
-                    b_format_data Data = ExtractInstructionBFormat(Instruction);
+                    b_format_data Data = *(b_format_data *)&Instruction;
                     
                     printf(FormatInstruction->Mnemonic);
-                    
                     
                     s32 OperandAddress = Data.BD;
                     if(Data.LK)
@@ -447,7 +266,9 @@ int main(int Argc, char **Argv)
                 
                 case X_Form:
                 {
-                    //ExtractInstructionXFormat(FormatInstruction->Mnemonic, Instruction);
+                    x_format_data Data = *(x_format_data *)&Instruction;
+                    
+                    printf("%-6s r%d, r%d, r%d", FormatInstruction->Mnemonic, Data.RT, Data.RA, Data.RB);
                 } break;
                 
                 case XL_Form:

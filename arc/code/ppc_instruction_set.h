@@ -1,42 +1,21 @@
 #ifndef PPC_INSTRUCTION_SET_H
 
-enum ppc_instruction_form
-{
-    None_Form,
-    
-    I_Form,
-    B_Form,
-    SC_Form,
-    
-    D_Form,
-    X_Form,
-    
-    XL_Form,
-};
-
-typedef struct ppc_instruction
-{
-    u16 Opcode;
-    char Mnemonic[8];
-    
-    u16 Form;
-    
-    u16 ExtendedOpcode;
-    
-    void (*CustomDecoding)(void *FormatData);
-} ppc_instruction;
+#include "ppc_encoding.h"
 
 global_variable ppc_instruction 
 InstructionSet[] = 
 {
     //{2, "tdi", D_Form}, // ppc64 // TODO: Add extended mnemonics.
-    {3, "twi", D_Form, 0, TrapDecoder}, // TODO: Add extended mnemonics.
+    //{3, "twi", D_Form, 0, TrapDecoder}, // TODO: Add extended mnemonics.
+    {3, "twi", D_Form}, // TODO: Add extended mnemonics.
     
     {7, "mulli", D_Form},
     {8, "subfic", D_Form},
     
-    {10, "cmpli", D_Form, 0, CmpliDecoder},
-    {11, "cmpi", D_Form, 0, CmpliDecoder}, // TODO: This one is signed.
+    //{10, "cmpli", D_Form, 0, CmpliDecoder},
+    //{11, "cmpi", D_Form, 0, CmpliDecoder}, // TODO: This one is signed.
+    {10, "cmpli", D_Form},
+    {11, "cmpi", D_Form}, // TODO: This one is signed.
     
     {12, "addic", D_Form},
     {13, "addic.", D_Form},
