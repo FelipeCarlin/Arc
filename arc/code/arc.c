@@ -1,22 +1,8 @@
 
 #include "arc.h"
 
-typedef struct loaded_file
-{
-    char *Filename;
-    
-    void *Memory;
-    u64 Size;
-} loaded_file;
-
-inline u32
-SafeTruncateUInt64(u64 Value)
-{
-    // TODO(felipe): Defines for maximum values.
-    Assert(Value <= 0xFFFFFFFF);
-    u32 Result = (u32)Value;
-    return Result;
-}
+#include <stdio.h>
+#include <windows.h>
 
 internal loaded_file
 Win32ReadEntireFile(char *Filename)
@@ -199,20 +185,88 @@ int main(int Argc, char **Argv)
         
         if(FormatInstruction)
         {
+            printf("%-6s", FormatInstruction->Mnemonic);
+            
+            u32 ArgumentSpace = 4;
+            
+            u32 LastPrinted = 0;
+            for(u32 I = 0;
+                I < ArrayCount(FormatInstruction->Operands);
+                ++I)
+            {
+                u16 Operand = FormatInstruction->Operands[I];
+                ppc_operand_encoding Encoding = OperandEncodings[Operand];
+                
+                if(Operand)
+                {
+                    u32 Shift = 32 - Encoding.EndBit;
+                    u32 Mask = ((u32)1 << (Encoding.EndBit - Encoding.StartBit)) - 1;
+                    u32 SignMask = ((u32)1 << (Encoding.EndBit - Encoding.StartBit - 1));
+                    
+                    u32 OperandValue = (Instruction >> Shift) & Mask;
+                    
+                    printf("%c", (I == 0 ? ' ' : ','));
+                    printf("%*s", Maximum(ArgumentSpace - LastPrinted, 0), "");
+                    
+                    if(Encoding.IsRegister)
+                    {
+                        LastPrinted = printf("r%d", OperandValue);
+                    }
+                    else if(Encoding.IsSigned)
+                    {
+                        u32 SignValue = OperandValue & SignMask ? ~Mask : 0;
+                        u32 SOperandValue = (s32)OperandValue | SignValue;
+                        
+                        LastPrinted = printf("%d", SOperandValue);
+                    }
+                    else
+                    {
+                        LastPrinted = printf("%u", OperandValue);
+                    }
+                }
+            }
+#if 0
             switch(FormatInstruction->Form)
             {
                 case D_Form:
                 {
                     d_format_data Data = *(d_format_data *)&Instruction;
                     
-                    if(FormatInstruction->CustomDecoding)
+                    printf("%-6s", FormatInstruction->Mnemonic);
+                    
+                    for(u32 I = 0;
+                        I < ArrayCount(FormatInstruction->Operands);
+                        ++I)
                     {
-                        FormatInstruction->CustomDecoding(&Data);
-                    }
-                    else
-                    {
-                        char *Format = "%-6s r%d,  r%d, %d";
-                        printf(Format, FormatInstruction->Mnemonic, Data.RT, Data.RA, Data.D);
+                        u16 Operand = FormatInstruction->Operands[I];
+                        ppc_operand_encoding Encoding = OperandEncodings[Operand];
+                        
+                        if(Operand)
+                        {
+                            u32 Shift = 32 - Encoding.EndBit;
+                            u32 Mask = ((u32)1 << (Encoding.EndBit - Encoding.StartBit)) - 1;
+                            u32 SignMask = ((u32)1 << (Encoding.EndBit - Encoding.StartBit - 1));
+                            
+                            u32 OperandValue = (Instruction >> Shift) & Mask;
+                            
+                            if(Encoding.IsRegister)
+                            {
+                                printf("  r%-2d", OperandValue);
+                            }
+                            else if(Encoding.IsSigned)
+                            {
+                                u32 SignValue = OperandValue & SignMask ? ~Mask : 0;
+                                u32 SOperandValue = (s32)OperandValue | SignValue;
+                                
+                                printf("  %-2d", SOperandValue);
+                            }
+                            else
+                            {
+                                printf("  %-2u", OperandValue);
+                            }
+                        }
+                        //char *Format = "%-6s r%d,  r%d, %d";
+                        //printf(Format, FormatInstruction->Mnemonic, Data.RT, Data.RA, Data.D);
                     }
                 } break;
                 
@@ -282,6 +336,7 @@ int main(int Argc, char **Argv)
                     //printf();
                 } break;
             }
+#endif
         }
         
         int BH = 169;

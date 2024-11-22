@@ -14,14 +14,50 @@ enum ppc_instruction_form
     XL_Form,
 };
 
+typedef struct ppc_operand_encoding
+{
+    // In powerpc fashion, this is msb first.
+    u8 StartBit;
+    u8 EndBit;
+    
+    u8 IsRegister;
+    u8 IsSigned;
+} ppc_operand_encoding;
+
+typedef enum ppc_instruction_operand
+{
+    OP_None = 0,
+    
+    OP_LI,
+    OP_BO,
+    OP_BI,
+    OP_BD,
+    
+    OP_LEV,
+    
+    OP_RT,
+    OP_RS,
+    OP_BF,
+    OP_L,
+    OP_TO,
+    OP_FRT,
+    OP_FRS,
+    OP_RA,
+    
+    OP_D,
+    OP_SI,
+    OP_UI,
+} ppc_instruction_operand;
+
 typedef struct ppc_instruction
 {
     u16 Opcode;
+    u16 ExtendedOpcode;
+    
     char Mnemonic[8];
     
     u16 Form;
-    
-    u16 ExtendedOpcode;
+    u16 Operands[4];
     
     void (*CustomDecoding)(void *FormatData);
 } ppc_instruction;
