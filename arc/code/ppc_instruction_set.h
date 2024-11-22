@@ -1,57 +1,92 @@
-#ifndef PPC_INSTRUCTION_SET_H
+#ifndef PPC_ENCODING_H
 
-#include "ppc_encoding.h"
-
-//#define SIMPLE_INS(Opcode, Mnemonic, Form, ...) {Opcode, 0, Mnemonic, Form, __VA_ARGS__}
-//#define EXTENDED_INS(Opcode, ExtendedOpcode, Mnemonic, Form, ...) {Opcode, ExtendedOpcode, Mnemonic, Form, __VA_ARGS__}
-
-// TODO: Add extended mnemonics.
-// TODO: Hash table for Operands?
-
-global_variable ppc_operand_encoding 
-OperandEncodings[] = 
+typedef enum ppc_field_type
 {
-    {OP_None, 0,  0,  0, 0},
+    FD_None,
     
-    {OP_LI,  6,  30, 0, 1}, // LI
-    {OP_BO,  6,  11, 1, 0}, // BO
-    {OP_BI,  11, 16, 1, 0}, // BI
-    {OP_BD,  16, 30, 1, 0}, // BD
+#define FIELD(Name, ...) FD_##Name,
+#include "ppc_field_table.inl"
     
-    {OP_LEV, 20, 27, 0, 0}, // LEV
+} ppc_field_type;
+
+typedef struct ppc_field_encoding
+{
+    // In powerpc fashion, this is msb first.
+    u8 Field;
     
-    {OP_RT,  6,  11, 1, 0}, // RT
-    {OP_RS,  6,  11, 1, 0}, // RS
-    {OP_BF,  6,  9,  0, 0}, // BF
-    {OP_L,   10, 11, 0, 0}, // L
-    {OP_TO,  6,  11, 1, 0}, // TO
-    {OP_FRT, 6,  11, 1, 0}, // FRT
-    {OP_FRS, 6,  11, 1, 0}, // FRS
-    {OP_RA,  11, 16, 1, 0}, // RA
+    u8 StartBit;
+    u8 EndBit;
     
-    {OP_D,   16, 32, 0, 1}, // D
-    {OP_SI,  16, 32, 0, 1}, // SI
-    {OP_UI,  16, 32, 0, 0}, // UI
+    u8 IsRegister;
+    u8 IsSigned;
+} ppc_field_encoding;
+
+global_variable ppc_field_encoding
+FieldEncodings[] = 
+{
+    {FD_None},
     
-    {OP_DS,  16, 30, 0, 1}, // DS
+#include "ppc_field_table.inl"
     
-    {OP_TH,  7,  11, 0, 0}, // TH
-    {OP_BT,  6,  11, 0, 0}, // BT
-    {OP_RB,  16, 21, 1, 1}, // RB
-    {OP_NB,  16, 21, 0, 0}, // NB
-    {OP_SH,  16, 21, 0, 1}, // SH
-    {OP_FRB, 16, 21, 1, 0}, // FRB  // FPR
-    {OP_U,   16, 20, 0, 0}, // U    // signed?
-    {OP_Rc,  31, 32, 0, 0}, // Rc
-    
-    {OP_BA,  11, 16, 0, 0}, // BA
-    {OP_BFA, 11, 14, 0, 0}, // BFA
-    {OP_BB,  16, 21, 0, 0}, // BB
-    {OP_BH,  19, 21, 0, 0}, // BH
 };
 
-// TODO: Hash map
+typedef enum ppc_operation_type
+{
+    Op_None,
+    
+#define INST(Opcode, ExtendedOpcode, Mnemonic, ...) Op_##Mnemonic,
+#include "ppc_instruction_table.inl"
+    
+    Op_Count,
+} ppc_operation_type;
 
+typedef enum ppc_instruction_flags
+{
+    INST_D_FORM   = (1 << 0),
+    INST_B_FORM   = (1 << 1),
+    INST_SC_FORM  = (1 << 2),
+    INST_I_FORM   = (1 << 3),
+    INST_M_FORM   = (1 << 4),
+    INST_X_FORM   = (1 << 5),
+    INST_XL_FORM  = (1 << 6),
+    INST_XFX_FORM = (1 << 7),
+    
+    INST_P        = (1 << 8),
+} ppc_instruction_flags;
 
-#define PPC_INSTRUCTION_SET_H
+typedef struct ppc_instruction_encoding
+{
+    u16 Opcode;
+    u16 ExtendedOpcode;
+    
+    ppc_operation_type Op;
+    
+    //u16 Form;
+    ppc_instruction_flags Flags;
+    
+    u16 Operands[5];
+    
+    void (*CustomDecoding)(void *FormatData);
+} ppc_instruction_encoding;
+
+global_variable ppc_instruction_encoding
+InstructionSet[] = 
+{
+    
+#include "ppc_instruction_table.inl"
+    
+};
+
+global_variable char *
+OperationNemonic[] =
+{
+    "None",
+    
+#define INST(Opcode, ExtendedOpcode, Mnemonic, ...) #Mnemonic,
+#define INSTP(Opcode, ExtendedOpcode, Mnemonic, ...) #Mnemonic,
+#include "ppc_instruction_table.inl"
+    
+};
+
+#define PPC_ENCODING_H
 #endif

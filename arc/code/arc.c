@@ -98,7 +98,6 @@ PrintHexDump(u8 *Data, u32 Length)
     }
 }
 
-#include "ppc_encoding.h"
 #include "ppc_instruction_set.h"
 
 internal char *
@@ -133,13 +132,17 @@ int main(int Argc, char **Argv)
     loaded_file File = Win32ReadEntireFile("simple.bin");
     PrintHexDump((u8 *)File.Memory, (u32)File.Size);
     
+    // TODO:
+    // - Decouple instruction decoding from printing.
+    // - Support extended mnemonics (ie.  mr ra, rb  ->  or ra, rb, rb).
+    // - Support object files.
+    
     u32 InstructionCount = (u32)(File.Size/4);
     u64 Address = 0x80003000;
     
     u32 AddressSpacing = 3;
-    u32 MnemonicSpacing = 2;
-    u32 OperandSpacing = 3;
-    
+    u32 MnemonicSpacing = 8;
+    u32 OperandSpacing = 4;
     
     for(u32 InstructionIndex = 0;
         InstructionIndex < InstructionCount;
@@ -190,9 +193,10 @@ int main(int Argc, char **Argv)
         {
             ppc_instruction_encoding *TestEncoding = InstructionSet + SetIndex;
             
+            u32 ExtendedFormMask = INST_X_FORM | INST_XL_FORM | INST_XFX_FORM;
+            
             if(TestEncoding->Opcode == Opcode &&
-               (!(TestEncoding->Form == X_Form ||
-                  TestEncoding->Form == XL_Form) ||
+               (!(TestEncoding->Flags & ExtendedFormMask) ||
                 TestEncoding->ExtendedOpcode == ExtendedOpcode))
             {
                 InstEncoding = TestEncoding;
@@ -200,29 +204,20 @@ int main(int Argc, char **Argv)
             }
         }
         
-        /*
-        typedef struct ppc_instruction
-        {
-            //ppc_instruction_mnemonic
-            int Placeholder;
-        } ppc_instruction;
-        */
-        
-        // Print
         if(InstEncoding)
         {
-            //printf("%-6s", FormatInstruction->Mnemonic);
             char *Mnemonic = OperationNemonic[InstEncoding->Op];
-            printf("%-6s", Mnemonic);
+            u32 MnemonicLength = printf("%s", Mnemonic);
+            if(InstEncoding->Flags & INST_P) printf(".");
             
-            printf("%*s", MnemonicSpacing, "");
+            printf("%*s", Maximum(MnemonicSpacing - MnemonicLength, 0), "");
             u32 LastPrinted = 0;
             for(u32 I = 0;
                 I < ArrayCount(InstEncoding->Operands);
                 ++I)
             {
                 u16 Operand = InstEncoding->Operands[I];
-                ppc_operand_encoding Encoding = OperandEncodings[Operand];
+                ppc_field_encoding Encoding = FieldEncodings[Operand];
                 
                 if(Operand)
                 {
@@ -241,6 +236,7 @@ int main(int Argc, char **Argv)
                     else
                     {
                         printf("\033[94m");
+                        
                         if(Encoding.IsSigned)
                         {
                             u32 SignValue = OperandValue & SignMask ? ~Mask : 0;

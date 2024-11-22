@@ -24,3 +24,4 @@ next:				# Prepare to loop over arguments
 	mtlr 27			# LinkRegister <- r27
 	mr 3,13			# r3 <- r13
 	blr			# go to the address stored in LinkRegister
+	andi. 12, 2, 3
