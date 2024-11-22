@@ -1,22 +1,26 @@
+main:
+	mflr 27			# r27 <- LinkRegister 
+	mr 13,3			# r13 <- r3	(argc)
+	mr 14,4			# r14 <- r4	(argv)
+	addi 3,3,48		# r3 <- r3 + 48 (transform argc in ASCII digit)
+	bl putchar		# call to the putchar C function (libc)
 
-start:
-#	addic 12,3,0xff
-#	addic. 12,3,0xff
-#	addi 12,3,0xff
-#	addis 12,3,0xff
+	li 3,10			# r3 <- 10 (LF ASCII code)
+	bl putchar		# call to the putchar C function (libc)
 
-#	ori 12,3,0xff
-#	oris 12,3,0xff
-#	xori 12,3,0xff
-#	xoris 12,3,0xff
-#	andi. 12,3,0xff
-#	andis. 12,3,0xff
-#	
-#	crxor 1, 2, 3
-	subfic 1, 12, -1653
-        twi 2, 1, -100
-        cmpli 5, 1, 3, 16000
-        cmpi 5, 1, 3, -8000
-	b 0x10
-	sc
-	sc 5
+next:				# Prepare to loop over arguments
+	lwz 3,0(14)		# r3 <- (r14)
+	bl puts			# call to the puts C function from (libc)
+	
+	addi 14,14,4		# r14 <- r14 + 4 (4 bytes offset)
+	addi 13,13,-1		# decrement r13
+	cmpwi 13,0
+	bgt next		# while r13 > 0 go to label :next
+
+
+	lis 3,zone@ha		# load the address of label zone: in r3
+	addi 3,3,zone@l
+	bl puts			# call to the puts C function (libc)
+	mtlr 27			# LinkRegister <- r27
+	mr 3,13			# r3 <- r13
+	blr			# go to the address stored in LinkRegister

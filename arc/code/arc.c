@@ -101,12 +101,11 @@ PrintHexDump(u8 *Data, u32 Length)
 #include "ppc_encoding.h"
 #include "ppc_instruction_set.h"
 
-internal void
-TrapDecoder(d_format_data Data)
+internal char *
+TOFieldString(u32 TO)
 {
     char *ConditionSymbol = "";
-    //switch(Data.TO)
-    switch(Data.RT)
+    switch(TO)
     {
         case 0b10000: { ConditionSymbol = "lt"; } break;
         case 0b10100: { ConditionSymbol = "le"; } break;
@@ -126,17 +125,7 @@ TrapDecoder(d_format_data Data)
         //case 0b11111: { ConditionSymbol = ""; } break;
     }
     
-    //printf("tw%si  r%d, %d", ConditionSymbol, Data.RA, Data.SI);
-    printf("tw%si  r%d, %d", ConditionSymbol, Data.RA, Data.D);
-}
-
-internal void
-CmpliDecoder(d_format_data *Data)
-{
-    //u32 BF = (Data->RS & 0b11100) >> 2;
-    //u32 L  = (Data->RS & 0b00001) >> 0;
-    
-    //printf("cmpli r%d %d r%d, %d", BF, L, Data->RA, (u16)Data->UI);
+    return ConditionSymbol;
 }
 
 int main(int Argc, char **Argv)
@@ -145,29 +134,55 @@ int main(int Argc, char **Argv)
     PrintHexDump((u8 *)File.Memory, (u32)File.Size);
     
     u32 InstructionCount = (u32)(File.Size/4);
-    //u32 InstructionCount = 1;
     u64 Address = 0x80003000;
+    
+    u32 AddressSpacing = 3;
+    u32 MnemonicSpacing = 2;
+    u32 OperandSpacing = 3;
+    
     
     for(u32 InstructionIndex = 0;
         InstructionIndex < InstructionCount;
         ++InstructionIndex)
     {
-        u32 Instruction = *(u32 *)((u8 *)File.Memory + InstructionIndex*4);
-        Instruction = (((Instruction>>24)&0xff) | // move byte 3 to byte 0
-                       ((Instruction<<8)&0xff0000) | // move byte 1 to byte 2
-                       ((Instruction>>8)&0xff00) | // move byte 2 to byte 1
-                       ((Instruction<<24)&0xff000000)); // byte 0 to byte 3
+        u32 InstructionBytes = *(u32 *)((u8 *)File.Memory + InstructionIndex*4);
+        u32 Instruction = (((InstructionBytes >> 24)& 0xff)     |   // move byte 3 to byte 0
+                           ((InstructionBytes << 8) & 0xff0000) |   // move byte 1 to byte 2
+                           ((InstructionBytes >> 8) & 0xff00)   |   // move byte 2 to byte 1
+                           ((InstructionBytes << 24)& 0xff000000)); // byte 0 to byte 3
         
-        //u32 Instruction = 0x4bffffb5;
         u8 Opcode = Instruction >> (32 - 6);
         u16 ExtendedOpcode = (Instruction >> (32 - 31)) & 0b1111111111;
         
         // Printing
-        printf("0x%.8llx      ", Address);
+        printf("\033[2m0x%.8llx\033[0m      ", Address);
         
-        printf("%.8lx    ", Instruction);
+        //printf("%.8lx    ", Instruction);
+        for(s32 I = 0;
+            I < 4;
+            ++I)
+        {
+            u8 Byte = (InstructionBytes >> (I*8)) & 0xff;
+            u8 ColorIndex = Byte >> 5;
+            
+            u32 Colors[] =
+            {
+                240,
+                248,
+                256,
+                260,
+                260,
+                256,
+                248,
+                240,
+            };
+            
+            printf("\033[38;5;%dm%.2lx", Colors[ColorIndex], Byte);
+        }
         
-        // Dissasembling
+        printf("\033[0m%*s", AddressSpacing, "");
+        
+        // Finding instruction format in table
         ppc_instruction *FormatInstruction = 0;
         for(u32 SetIndex = 0;
             SetIndex < ArrayCount(InstructionSet);
@@ -176,19 +191,21 @@ int main(int Argc, char **Argv)
             ppc_instruction *TestFormatInst = InstructionSet + SetIndex;
             
             if(TestFormatInst->Opcode == Opcode &&
-               (TestFormatInst->Form != XL_Form || TestFormatInst->ExtendedOpcode == ExtendedOpcode))
+               (!(TestFormatInst->Form == X_Form ||
+                  TestFormatInst->Form == XL_Form) ||
+                TestFormatInst->ExtendedOpcode == ExtendedOpcode))
             {
                 FormatInstruction = TestFormatInst;
                 break;
             }
         }
         
+        // Print
         if(FormatInstruction)
         {
             printf("%-6s", FormatInstruction->Mnemonic);
             
-            u32 ArgumentSpace = 4;
-            
+            printf("%*s", MnemonicSpacing, "");
             u32 LastPrinted = 0;
             for(u32 I = 0;
                 I < ArrayCount(FormatInstruction->Operands);
@@ -205,141 +222,31 @@ int main(int Argc, char **Argv)
                     
                     u32 OperandValue = (Instruction >> Shift) & Mask;
                     
-                    printf("%c", (I == 0 ? ' ' : ','));
-                    printf("%*s", Maximum(ArgumentSpace - LastPrinted, 0), "");
+                    if(I != 0) printf(",%*s", Maximum(OperandSpacing - LastPrinted, 0), "");
                     
                     if(Encoding.IsRegister)
                     {
                         LastPrinted = printf("r%d", OperandValue);
                     }
-                    else if(Encoding.IsSigned)
-                    {
-                        u32 SignValue = OperandValue & SignMask ? ~Mask : 0;
-                        u32 SOperandValue = (s32)OperandValue | SignValue;
-                        
-                        LastPrinted = printf("%d", SOperandValue);
-                    }
                     else
                     {
-                        LastPrinted = printf("%u", OperandValue);
+                        printf("\033[94m");
+                        if(Encoding.IsSigned)
+                        {
+                            u32 SignValue = OperandValue & SignMask ? ~Mask : 0;
+                            u32 SOperandValue = (s32)OperandValue | SignValue;
+                            
+                            LastPrinted = printf("%d", SOperandValue);
+                        }
+                        else
+                        {
+                            LastPrinted = printf("%u", OperandValue);
+                        }
+                        printf("\033[0m");
                     }
                 }
             }
-#if 0
-            switch(FormatInstruction->Form)
-            {
-                case D_Form:
-                {
-                    d_format_data Data = *(d_format_data *)&Instruction;
-                    
-                    printf("%-6s", FormatInstruction->Mnemonic);
-                    
-                    for(u32 I = 0;
-                        I < ArrayCount(FormatInstruction->Operands);
-                        ++I)
-                    {
-                        u16 Operand = FormatInstruction->Operands[I];
-                        ppc_operand_encoding Encoding = OperandEncodings[Operand];
-                        
-                        if(Operand)
-                        {
-                            u32 Shift = 32 - Encoding.EndBit;
-                            u32 Mask = ((u32)1 << (Encoding.EndBit - Encoding.StartBit)) - 1;
-                            u32 SignMask = ((u32)1 << (Encoding.EndBit - Encoding.StartBit - 1));
-                            
-                            u32 OperandValue = (Instruction >> Shift) & Mask;
-                            
-                            if(Encoding.IsRegister)
-                            {
-                                printf("  r%-2d", OperandValue);
-                            }
-                            else if(Encoding.IsSigned)
-                            {
-                                u32 SignValue = OperandValue & SignMask ? ~Mask : 0;
-                                u32 SOperandValue = (s32)OperandValue | SignValue;
-                                
-                                printf("  %-2d", SOperandValue);
-                            }
-                            else
-                            {
-                                printf("  %-2u", OperandValue);
-                            }
-                        }
-                        //char *Format = "%-6s r%d,  r%d, %d";
-                        //printf(Format, FormatInstruction->Mnemonic, Data.RT, Data.RA, Data.D);
-                    }
-                } break;
-                
-                case I_Form:
-                {
-                    i_format_data Data = *(i_format_data *)&Instruction;
-                    
-                    printf(FormatInstruction->Mnemonic);
-                    
-                    s32 BranchAddress = Data.LI;
-                    if(Data.LK)
-                    {
-                        printf("l");
-                    }
-                    
-                    if(Data.AA)
-                    {
-                        printf("a");
-                    }
-                    else
-                    {
-                        BranchAddress = (s32)(BranchAddress + Address);
-                    }
-                    
-                    printf("  0x%lx", BranchAddress);
-                } break;
-                
-                case B_Form:
-                {
-                    b_format_data Data = *(b_format_data *)&Instruction;
-                    
-                    printf(FormatInstruction->Mnemonic);
-                    
-                    s32 OperandAddress = Data.BD;
-                    if(Data.LK)
-                    {
-                        printf("l");
-                    }
-                    
-                    if(Data.AA)
-                    {
-                        printf("a");
-                    }
-                    else
-                    {
-                        OperandAddress = (s32)(OperandAddress + Address);
-                    }
-                    
-                    //printf("  0x%lx", LI);
-                } break;
-                
-                case X_Form:
-                {
-                    x_format_data Data = *(x_format_data *)&Instruction;
-                    
-                    printf("%-6s r%d, r%d, r%d", FormatInstruction->Mnemonic, Data.RT, Data.RA, Data.RB);
-                } break;
-                
-                case XL_Form:
-                {
-                    //xl_format_data Data = ExtractInstructionXLFormat(Instruction);
-                    xl_format_data Data = *(xl_format_data *)&Instruction;
-                    
-                    char *Format = "%-6s %d, %d, %d";
-                    printf(Format, FormatInstruction->Mnemonic, Data.BT, Data.BA, Data.BB);
-                    
-                    //printf();
-                } break;
-            }
-#endif
         }
-        
-        int BH = 169;
         
         printf("\n");
         Address += 4;

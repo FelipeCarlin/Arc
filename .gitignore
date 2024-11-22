@@ -10,3 +10,7 @@ reference/
 # --------------------------------------------
 
 Command Prompt.lnk
+arc.rdbg
+
+tests/simple.bin
+tests/simple.o

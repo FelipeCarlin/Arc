@@ -14,17 +14,7 @@ enum ppc_instruction_form
     XL_Form,
 };
 
-typedef struct ppc_operand_encoding
-{
-    // In powerpc fashion, this is msb first.
-    u8 StartBit;
-    u8 EndBit;
-    
-    u8 IsRegister;
-    u8 IsSigned;
-} ppc_operand_encoding;
-
-typedef enum ppc_instruction_operand
+typedef enum ppc_instruction_operand_field
 {
     OP_None = 0,
     
@@ -47,7 +37,35 @@ typedef enum ppc_instruction_operand
     OP_D,
     OP_SI,
     OP_UI,
-} ppc_instruction_operand;
+    
+    OP_DS,
+    
+    OP_TH,
+    OP_BT,
+    OP_RB,
+    OP_NB,
+    OP_SH,
+    OP_FRB,
+    OP_U,
+    OP_Rc,
+    
+    OP_BA,
+    OP_BFA,
+    OP_BB,
+    OP_BH,
+} ppc_instruction_operand_field;
+
+typedef struct ppc_operand_encoding
+{
+    // In powerpc fashion, this is msb first.
+    u8 Field;
+    
+    u8 StartBit;
+    u8 EndBit;
+    
+    u8 IsRegister;
+    u8 IsSigned;
+} ppc_operand_encoding;
 
 typedef struct ppc_instruction
 {

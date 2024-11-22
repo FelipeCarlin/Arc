@@ -3,37 +3,54 @@
 #include "ppc_encoding.h"
 
 #define SIMPLE_INS(Opcode, Mnemonic, Form, ...) {Opcode, 0, Mnemonic, Form, __VA_ARGS__}
-#define EXTENDED_INS(Opcode, ExtendedOpcode, Mnemonic, Form) {Opcode, ExtendedOpcode, Mnemonic, Form}
+#define EXTENDED_INS(Opcode, ExtendedOpcode, Mnemonic, Form, ...) {Opcode, ExtendedOpcode, Mnemonic, Form, __VA_ARGS__}
 
 // TODO: Add extended mnemonics.
-
+// TODO: Hash table for Operands?
 
 global_variable ppc_operand_encoding 
 OperandEncodings[] = 
 {
-    {0,  0,  0, 0},
+    {OP_None, 0,  0,  0, 0},
     
-    {6,  30, 0, 1}, // LI
-    {6,  11, 1, 0}, // BO
-    {11, 16, 1, 0}, // BI
-    {16, 30, 1, 0}, // BD
+    {OP_LI,  6,  30, 0, 1}, // LI
+    {OP_BO,  6,  11, 1, 0}, // BO
+    {OP_BI,  11, 16, 1, 0}, // BI
+    {OP_BD,  16, 30, 1, 0}, // BD
     
-    {20, 27, 0, 0}, // LEV
+    {OP_LEV, 20, 27, 0, 0}, // LEV
     
-    {6,  11, 1, 0}, // RT
-    {6,  11, 1, 0}, // RS
-    {6,  9,  1, 0}, // BF
-    {10, 11, 0, 0}, // L
-    {6,  11, 1, 0}, // TO
-    {6,  11, 1, 0}, // FRT
-    {6,  11, 1, 0}, // FRS
-    {11, 16, 1, 0}, // RA
+    {OP_RT,  6,  11, 1, 0}, // RT
+    {OP_RS,  6,  11, 1, 0}, // RS
+    {OP_BF,  6,  9,  0, 0}, // BF
+    {OP_L,   10, 11, 0, 0}, // L
+    {OP_TO,  6,  11, 1, 0}, // TO
+    {OP_FRT, 6,  11, 1, 0}, // FRT
+    {OP_FRS, 6,  11, 1, 0}, // FRS
+    {OP_RA,  11, 16, 1, 0}, // RA
     
-    {16, 32, 0, 1}, // D
-    {16, 32, 0, 1}, // SI
-    {16, 32, 0, 0}, // UI
+    {OP_D,   16, 32, 0, 1}, // D
+    {OP_SI,  16, 32, 0, 1}, // SI
+    {OP_UI,  16, 32, 0, 0}, // UI
+    
+    {OP_DS,  16, 30, 0, 1}, // DS
+    
+    {OP_TH,  7,  11, 0, 0}, // TH
+    {OP_BT,  6,  11, 0, 0}, // BT
+    {OP_RB,  16, 21, 1, 1}, // RB
+    {OP_NB,  16, 21, 0, 0}, // NB
+    {OP_SH,  16, 21, 0, 1}, // SH
+    {OP_FRB, 16, 21, 1, 0}, // FRB  // FPR
+    {OP_U,   16, 20, 0, 0}, // U    // signed?
+    {OP_Rc,  31, 32, 0, 0}, // Rc
+    
+    {OP_BA,  11, 16, 0, 0}, // BA
+    {OP_BFA, 11, 14, 0, 0}, // BFA
+    {OP_BB,  16, 21, 0, 0}, // BB
+    {OP_BH,  19, 21, 0, 0}, // BH
 };
 
+// TODO: Hash map
 
 global_variable ppc_instruction 
 InstructionSet[] = 
@@ -56,10 +73,10 @@ InstructionSet[] =
     SIMPLE_INS(17, "sc",    SC_Form, {OP_LEV}),
     SIMPLE_INS(18, "b",     I_Form,  {OP_LI}),
     
-    EXTENDED_INS(19, 0, "mcrf", XL_Form),
-    EXTENDED_INS(19, 16, "bclr", XL_Form),
-    EXTENDED_INS(19, 18, "rfid", XL_Form),
-    EXTENDED_INS(19, 33, "crnor", XL_Form),
+    EXTENDED_INS(19, 0,   "mcrf", XL_Form, {OP_BF, OP_BFA}),
+    EXTENDED_INS(19, 16,  "bclr", XL_Form, {OP_BO, OP_BI, OP_BH}),
+    EXTENDED_INS(19, 18,  "rfid", XL_Form),
+    EXTENDED_INS(19, 33,  "crnor", XL_Form, {OP_BT, OP_BA, OP_BB}),
     EXTENDED_INS(19, 129, "crandc", XL_Form),
     EXTENDED_INS(19, 150, "isync", XL_Form),
     EXTENDED_INS(19, 193, "crxor", XL_Form),
@@ -79,27 +96,28 @@ InstructionSet[] =
     SIMPLE_INS(29, "ands.", D_Form, (0)),
     
     //{31, "or", X_Form, 444},
+    EXTENDED_INS(31, 444, "or", X_Form, {OP_RA, OP_RS, OP_RB}),
     
-    SIMPLE_INS(32, "lwz", D_Form, (0)),
-    SIMPLE_INS(33, "lwzu", D_Form, (0)),
-    SIMPLE_INS(34, "lbz", D_Form, (0)),
-    SIMPLE_INS(35, "lbzu", D_Form, (0)),
+    SIMPLE_INS(32, "lwz", D_Form),
+    SIMPLE_INS(33, "lwzu", D_Form),
+    SIMPLE_INS(34, "lbz", D_Form),
+    SIMPLE_INS(35, "lbzu", D_Form),
     
-    SIMPLE_INS(36, "stw", D_Form, (0)),
-    SIMPLE_INS(37, "stwu", D_Form, (0)),
-    SIMPLE_INS(38, "stb", D_Form, (0)),
-    SIMPLE_INS(39, "stbu", D_Form, (0)),
+    SIMPLE_INS(36, "stw", D_Form),
+    SIMPLE_INS(37, "stwu", D_Form),
+    SIMPLE_INS(38, "stb", D_Form),
+    SIMPLE_INS(39, "stbu", D_Form),
     
-    SIMPLE_INS(40, "lhz", D_Form, (0)),
-    SIMPLE_INS(41, "lhzu", D_Form, (0)),
-    SIMPLE_INS(42, "lha", D_Form, (0)),
-    SIMPLE_INS(43, "lhau", D_Form, (0)),
+    SIMPLE_INS(40, "lhz", D_Form),
+    SIMPLE_INS(41, "lhzu", D_Form),
+    SIMPLE_INS(42, "lha", D_Form),
+    SIMPLE_INS(43, "lhau", D_Form),
     
-    SIMPLE_INS(44, "sth", D_Form, (0)),
-    SIMPLE_INS(45, "sthu", D_Form, (0)),
+    SIMPLE_INS(44, "sth", D_Form),
+    SIMPLE_INS(45, "sthu", D_Form),
     
-    SIMPLE_INS(46, "lmw", D_Form, (0)),
-    SIMPLE_INS(47, "stmw", D_Form, (0)),
+    SIMPLE_INS(46, "lmw", D_Form),
+    SIMPLE_INS(47, "stmw", D_Form),
 };
 
 #define PPC_INSTRUCTION_SET_H
