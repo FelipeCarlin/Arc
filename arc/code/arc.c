@@ -183,35 +183,45 @@ int main(int Argc, char **Argv)
         printf("\033[0m%*s", AddressSpacing, "");
         
         // Finding instruction format in table
-        ppc_instruction *FormatInstruction = 0;
+        ppc_instruction_encoding *InstEncoding = 0;
         for(u32 SetIndex = 0;
             SetIndex < ArrayCount(InstructionSet);
             ++SetIndex)
         {
-            ppc_instruction *TestFormatInst = InstructionSet + SetIndex;
+            ppc_instruction_encoding *TestEncoding = InstructionSet + SetIndex;
             
-            if(TestFormatInst->Opcode == Opcode &&
-               (!(TestFormatInst->Form == X_Form ||
-                  TestFormatInst->Form == XL_Form) ||
-                TestFormatInst->ExtendedOpcode == ExtendedOpcode))
+            if(TestEncoding->Opcode == Opcode &&
+               (!(TestEncoding->Form == X_Form ||
+                  TestEncoding->Form == XL_Form) ||
+                TestEncoding->ExtendedOpcode == ExtendedOpcode))
             {
-                FormatInstruction = TestFormatInst;
+                InstEncoding = TestEncoding;
                 break;
             }
         }
         
-        // Print
-        if(FormatInstruction)
+        /*
+        typedef struct ppc_instruction
         {
-            printf("%-6s", FormatInstruction->Mnemonic);
+            //ppc_instruction_mnemonic
+            int Placeholder;
+        } ppc_instruction;
+        */
+        
+        // Print
+        if(InstEncoding)
+        {
+            //printf("%-6s", FormatInstruction->Mnemonic);
+            char *Mnemonic = OperationNemonic[InstEncoding->Op];
+            printf("%-6s", Mnemonic);
             
             printf("%*s", MnemonicSpacing, "");
             u32 LastPrinted = 0;
             for(u32 I = 0;
-                I < ArrayCount(FormatInstruction->Operands);
+                I < ArrayCount(InstEncoding->Operands);
                 ++I)
             {
-                u16 Operand = FormatInstruction->Operands[I];
+                u16 Operand = InstEncoding->Operands[I];
                 ppc_operand_encoding Encoding = OperandEncodings[Operand];
                 
                 if(Operand)

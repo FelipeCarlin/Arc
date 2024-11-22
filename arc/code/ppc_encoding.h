@@ -67,19 +67,46 @@ typedef struct ppc_operand_encoding
     u8 IsSigned;
 } ppc_operand_encoding;
 
-typedef struct ppc_instruction
+typedef enum ppc_operation_type
+{
+    Op_None,
+    
+#define INST(Opcode, ExtendedOpcode, Mnemonic, ...) Op_##Mnemonic,
+#include "ppc_instruction_table.inl"
+#undef INST
+    
+    Op_Count,
+} ppc_operation_type;
+
+typedef struct ppc_instruction_encoding
 {
     u16 Opcode;
     u16 ExtendedOpcode;
     
-    char Mnemonic[8];
+    ppc_operation_type Op;
+    
+    //char Mnemonic[8];
     
     u16 Form;
     u16 Operands[4];
     
     void (*CustomDecoding)(void *FormatData);
-} ppc_instruction;
+} ppc_instruction_encoding;
 
+global_variable ppc_instruction_encoding
+InstructionSet[] = 
+{
+#include "ppc_instruction_table.inl"
+};
+
+global_variable char *
+OperationNemonic[] =
+{
+    "None",
+#define INST(Opcode, ExtendedOpcode, Mnemonic, ...) #Mnemonic,
+#include "ppc_instruction_table.inl"
+#undef INST
+};
 
 //
 // Instruction Formats
