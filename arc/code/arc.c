@@ -127,6 +127,31 @@ TOFieldString(u32 TO)
     return ConditionSymbol;
 }
 
+typedef enum operand_type
+{
+    OperandType_None,
+    OperandType_Field,
+    OperandType_Register,
+    OperandType_Immediate,
+    OperandType_Address,
+    OperandType_SpecialPurposeRegister,
+} operand_type;
+
+typedef struct operand
+{
+    operand_type Type;
+    u32 Value;
+    
+    b32 IsSigned;
+} operand;
+
+typedef struct instruction
+{
+    u16 Mnemonic;
+    
+    operand Operands[5];
+} instruction;
+
 int main(int Argc, char **Argv)
 {
     loaded_file File = Win32ReadEntireFile("simple.bin");
@@ -140,7 +165,8 @@ int main(int Argc, char **Argv)
     u32 InstructionCount = (u32)(File.Size/4);
     u64 Address = 0x80003000;
     
-    u32 AddressSpacing = 3;
+    u32 AddressSpacing = 5;
+    u32 BytesSpacing = 5;
     u32 MnemonicSpacing = 8;
     u32 OperandSpacing = 4;
     
@@ -158,7 +184,8 @@ int main(int Argc, char **Argv)
         u16 ExtendedOpcode = (Instruction >> (32 - 31)) & 0b1111111111;
         
         // Printing
-        printf("\033[2m0x%.8llx\033[0m      ", Address);
+        printf("\033[2m0x%.8llx\033[0m", Address);
+        printf("%*s", AddressSpacing, "");
         
         //printf("%.8lx    ", Instruction);
         for(s32 I = 0;
@@ -183,7 +210,7 @@ int main(int Argc, char **Argv)
             printf("\033[38;5;%dm%.2lx", Colors[ColorIndex], Byte);
         }
         
-        printf("\033[0m%*s", AddressSpacing, "");
+        printf("\033[0m%*s", BytesSpacing, "");
         
         // Finding instruction format in table
         ppc_instruction_encoding *InstEncoding = 0;
@@ -206,18 +233,17 @@ int main(int Argc, char **Argv)
         
         if(InstEncoding)
         {
-            char *Mnemonic = OperationNemonic[InstEncoding->Op];
-            u32 MnemonicLength = printf("%s", Mnemonic);
-            if(InstEncoding->Flags & INST_P) printf(".");
+            instruction Inst = {};
+            Inst.Mnemonic = InstEncoding->Op;
             
-            printf("%*s", Maximum(MnemonicSpacing - MnemonicLength, 0), "");
-            u32 LastPrinted = 0;
             for(u32 I = 0;
                 I < ArrayCount(InstEncoding->Operands);
                 ++I)
             {
                 u16 Operand = InstEncoding->Operands[I];
                 ppc_field_encoding Encoding = FieldEncodings[Operand];
+                
+                operand *Op = Inst.Operands + I;
                 
                 if(Operand)
                 {
@@ -227,30 +253,99 @@ int main(int Argc, char **Argv)
                     
                     u32 OperandValue = (Instruction >> Shift) & Mask;
                     
-                    if(I != 0) printf(",%*s", Maximum(OperandSpacing - LastPrinted, 0), "");
+                    Op->Type |= Encoding.Flags & FieldFlag_Field     ? OperandType_Field : 0;
+                    Op->Type |= Encoding.Flags & FieldFlag_Register  ? OperandType_Register : 0;
+                    Op->Type |= Encoding.Flags & FieldFlag_Immediate ? OperandType_Immediate : 0;
+                    Op->Type |= Encoding.Flags & FieldFlag_Address   ? OperandType_Address : 0;
+                    Op->Type |= Encoding.Flags & FieldFlag_SpecialPurposeRegister   ? OperandType_SpecialPurposeRegister : 0;
                     
-                    if(Encoding.IsRegister)
+                    Op->Value = OperandValue;
+                    
+                    if(Encoding.Flags & FieldFlag_Signed)
                     {
-                        LastPrinted = printf("r%d", OperandValue);
+                        u32 SignValue = OperandValue & SignMask ? ~Mask : 0;
+                        Op->Value = (s32)OperandValue | SignValue;
                     }
-                    else
+                    
+                    if(Encoding.Flags & FieldFlag_Shifted)
+                    {
+                        Op->Value <<= 2;
+                    }
+                    
+                }
+            }
+            
+            // Extended mnemonics
+            if(Inst.Mnemonic == Op_or && Inst.Operands[1].Value == Inst.Operands[2].Value)
+            {
+                Inst.Mnemonic = Op_mr;
+                Inst.Operands[2].Type = OperandType_None;
+            }
+            
+            if(Inst.Mnemonic == Op_addis && Inst.Operands[1].Value == 0)
+            {
+                Inst.Mnemonic = Op_lis;
+                Inst.Operands[2].Type = OperandType_None;
+                Inst.Operands[1].Type = OperandType_Immediate;
+                Inst.Operands[1].Value = Inst.Operands[2].Value;
+            }
+            
+            // Printing
+            char *MnemonicName = OperationNemonic[Inst.Mnemonic];
+            u32 MnemonicLength = printf("%s", MnemonicName);
+            
+            //if(InstEncoding->Flags & INST_P) printf(".");
+            
+            printf("%*s", Maximum(MnemonicSpacing - MnemonicLength, 0), "");
+            u32 LastPrinted = 0;
+            for(u32 I = 0;
+                I < ArrayCount(Inst.Operands);
+                ++I)
+            {
+                operand Op = Inst.Operands[I];
+                
+                if(!Op.Type)
+                {
+                    break;
+                }
+                
+                if(I != 0) printf("\033[2m,\033[0m%*s", Maximum(OperandSpacing - LastPrinted, 0), "");
+                
+                switch(Op.Type)
+                {
+                    case OperandType_Field:
+                    {
+                        LastPrinted = printf("%d", Op.Value);
+                    }break;
+                    
+                    case OperandType_Register:
+                    {
+                        printf("\033[2m");
+                        LastPrinted = printf("r%d", Op.Value);
+                    }break;
+                    
+                    case OperandType_Immediate:
                     {
                         printf("\033[94m");
-                        
-                        if(Encoding.IsSigned)
-                        {
-                            u32 SignValue = OperandValue & SignMask ? ~Mask : 0;
-                            u32 SOperandValue = (s32)OperandValue | SignValue;
-                            
-                            LastPrinted = printf("%d", SOperandValue);
-                        }
-                        else
-                        {
-                            LastPrinted = printf("%u", OperandValue);
-                        }
-                        printf("\033[0m");
-                    }
+                        LastPrinted = printf("%d", Op.Value);
+                    }break;
+                    
+                    case OperandType_Address:
+                    {
+                        printf("\033[34m");
+                        LastPrinted = printf("0x%llx", Address + Op.Value);
+                    }break;
+                    
+                    case OperandType_SpecialPurposeRegister:
+                    {
+                        LastPrinted = printf("mlr");
+                    }break;
+                    
+                    default:
+                    {
+                    } break;
                 }
+                printf("\033[0m");
             }
         }
         

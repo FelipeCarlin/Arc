@@ -76,6 +76,7 @@ SIMPLE_INSP(29, andis, D)
 
 EXTEND_INS(31, 339, mfspr, XFX, {FD_RT, FD_SPR})
 EXTEND_INS(31, 444, or,    X,   {FD_RA, FD_RS, FD_RB})
+EXTEND_INS(31, 467, mtspr, XFX, {FD_SPR, FD_RT})
 
 SIMPLE_INS(32, lwz,  D, {FD_RT, FD_D, FD_RA})
 SIMPLE_INS(33, lwzu, D)

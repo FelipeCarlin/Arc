@@ -9,6 +9,19 @@ typedef enum ppc_field_type
     
 } ppc_field_type;
 
+enum ppc_field_flags
+{
+    FieldFlag_None,
+    FieldFlag_Field     = (1 << 0),
+    FieldFlag_Register  = (1 << 1),
+    FieldFlag_Immediate = (1 << 2),
+    FieldFlag_Address   = (1 << 3),
+    FieldFlag_SpecialPurposeRegister  = (1 << 4),
+    
+    FieldFlag_Signed    = (1 << 5),
+    FieldFlag_Shifted   = (1 << 6),
+};
+
 typedef struct ppc_field_encoding
 {
     // In powerpc fashion, this is msb first.
@@ -17,8 +30,9 @@ typedef struct ppc_field_encoding
     u8 StartBit;
     u8 EndBit;
     
-    u8 IsRegister;
-    u8 IsSigned;
+    u8 Flags;
+    //u8 IsRegister;
+    //u8 IsSigned;
 } ppc_field_encoding;
 
 global_variable ppc_field_encoding
@@ -36,6 +50,9 @@ typedef enum ppc_operation_type
     
 #define INST(Opcode, ExtendedOpcode, Mnemonic, ...) Op_##Mnemonic,
 #include "ppc_instruction_table.inl"
+    
+    Op_mr,
+    Op_lis,
     
     Op_Count,
 } ppc_operation_type;
@@ -86,6 +103,8 @@ OperationNemonic[] =
 #define INSTP(Opcode, ExtendedOpcode, Mnemonic, ...) #Mnemonic,
 #include "ppc_instruction_table.inl"
     
+    "mr",
+    "lis",
 };
 
 #define PPC_ENCODING_H

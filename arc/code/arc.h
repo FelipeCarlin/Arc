@@ -25,6 +25,22 @@ typedef u32 b32;
 #define Minimum(a, b) a < b ? a : b
 #define Maximum(a, b) a < b ? b : a
 
+/*
+
+Sign extended mnemonic
+subic {Rx, Ry, value} -> addic {Rx, Ry, -value}
+
+Size extended mnemonic
+cmpd {0, Rx, Ry}      -> cmp {0, 1, Rx, Ry}
+
+ Comparison extended mnemonic
+tdlti {Rx, value}     -> tdi {16, Rx, value}
+
+ Specific extended mnemonic
+nop                   -> ori {0, 0, 0}
+mr  {Rx, Ry}          -> or  {Rx, Ry, Ry}   
+
+*/
 
 typedef struct loaded_file
 {
