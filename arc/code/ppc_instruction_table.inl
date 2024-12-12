@@ -27,6 +27,7 @@
 #define M  INST_M_FORM
 #define X  INST_X_FORM
 #define XL INST_XL_FORM
+#define XO INST_XO_FORM
 #define XFX INST_XFX_FORM
 
 
@@ -74,6 +75,36 @@ SIMPLE_INS(27, xors, D)
 SIMPLE_INSP(28, andi,  D, {FD_RA, FD_RS, FD_UI})
 SIMPLE_INSP(29, andis, D)
 
+EXTEND_INS(31, 0,   cmp, X, {FD_BF, FD_L, FD_RA, FD_RB})
+EXTEND_INS(31, 4,    tw, X, {FD_TO, FD_RA, FD_RB})
+
+EXTEND_INS(31,  8,  subfc, XO,  {FD_RT, FD_RA, FD_RB})
+EXTEND_INS(31,  9, mulhdu, XO,  {FD_RT, FD_RA, FD_RB})
+EXTEND_INS(31, 10,   addc, XO,  {FD_RT, FD_RA, FD_RB})
+EXTEND_INS(31, 11, mulhwu, XO,  {FD_RT, FD_RA, FD_RB})
+
+EXTEND_INS(31, 19,   mfcr, XFX, {FD_RT})
+
+EXTEND_INS(31, 20,  lwarx, X)   // No idea how its encoded
+EXTEND_INS(31, 21,    ldx, X,   {FD_RT, FD_RA, FD_RB})
+EXTEND_INS(31, 23,   ldzx, X,   {FD_RT, FD_RA, FD_RB})
+EXTEND_INS(31, 24,    slw, X,   {FD_RA, FD_RS, FD_RB})
+
+EXTEND_INS(31, 26, cntlzw, X,   {FD_RA, FD_RS})
+EXTEND_INS(31, 27,    sld, X,   {FD_RA, FD_RS, FD_RB})
+EXTEND_INS(31, 28,    and, X,   {FD_RA, FD_RS, FD_RB})
+EXTEND_INS(31, 32,   cmpl, X,   {FD_BF, FD_L,  FD_RA, FD_RB})
+
+EXTEND_INS(31, 40,   subf, XO,  {FD_RT, FD_RA, FD_RB})
+
+EXTEND_INS(31, 53,   ldux, X,   {FD_RT, FD_RA, FD_RB})
+EXTEND_INS(31, 54,  dcbst, X)   // Book II
+EXTEND_INS(31, 55,  lwzux, X,   {FD_RT, FD_RA, FD_RB})
+EXTEND_INS(31, 58, cntlzd, X,   {FD_RA, FD_RS})
+EXTEND_INS(31, 60,   andc, X,   {FD_RA, FD_RS, FD_RB})
+//
+//
+
 EXTEND_INS(31, 339, mfspr, XFX, {FD_RT, FD_SPR})
 EXTEND_INS(31, 444, or,    X,   {FD_RA, FD_RS, FD_RB})
 EXTEND_INS(31, 467, mtspr, XFX, {FD_SPR, FD_RT})
@@ -114,4 +145,5 @@ SIMPLE_INS(47, stmw, D)
 #undef M
 #undef X
 #undef XL
+#undef XO
 #undef XFX

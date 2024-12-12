@@ -51,9 +51,6 @@ typedef enum ppc_operation_type
 #define INST(Opcode, ExtendedOpcode, Mnemonic, ...) Op_##Mnemonic,
 #include "ppc_instruction_table.inl"
     
-    Op_mr,
-    Op_lis,
-    
     Op_Count,
 } ppc_operation_type;
 
@@ -66,9 +63,10 @@ typedef enum ppc_instruction_flags
     INST_M_FORM   = (1 << 4),
     INST_X_FORM   = (1 << 5),
     INST_XL_FORM  = (1 << 6),
-    INST_XFX_FORM = (1 << 7),
+    INST_XO_FORM  = (1 << 7),
+    INST_XFX_FORM = (1 << 8),
     
-    INST_P        = (1 << 8),
+    INST_P        = (1 << 9),
 } ppc_instruction_flags;
 
 typedef struct ppc_instruction_encoding
@@ -103,8 +101,6 @@ OperationNemonic[] =
 #define INSTP(Opcode, ExtendedOpcode, Mnemonic, ...) #Mnemonic,
 #include "ppc_instruction_table.inl"
     
-    "mr",
-    "lis",
 };
 
 #define PPC_ENCODING_H

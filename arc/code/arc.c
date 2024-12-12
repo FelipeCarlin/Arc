@@ -148,9 +148,24 @@ typedef struct operand
 typedef struct instruction
 {
     u16 Mnemonic;
+    char MnemonicName[16];
     
     operand Operands[5];
 } instruction;
+
+inline u32
+StringCopy(char *A, char *B)
+{
+    u32 Result = 0;
+    
+    while(*B)
+    {
+        *A++ = *B++;
+        ++Result;
+    }
+    
+    return Result;
+}
 
 int main(int Argc, char **Argv)
 {
@@ -220,7 +235,7 @@ int main(int Argc, char **Argv)
         {
             ppc_instruction_encoding *TestEncoding = InstructionSet + SetIndex;
             
-            u32 ExtendedFormMask = INST_X_FORM | INST_XL_FORM | INST_XFX_FORM;
+            u32 ExtendedFormMask = INST_X_FORM | INST_XL_FORM | INST_XO_FORM | INST_XFX_FORM;
             
             if(TestEncoding->Opcode == Opcode &&
                (!(TestEncoding->Flags & ExtendedFormMask) ||
@@ -235,6 +250,13 @@ int main(int Argc, char **Argv)
         {
             instruction Inst = {};
             Inst.Mnemonic = InstEncoding->Op;
+            u32 MnemonicLength = StringCopy(Inst.MnemonicName, OperationNemonic[InstEncoding->Op]);
+            //Inst.MnemonicName = OperationNemonic[InstEncoding->Op];
+            
+            if(InstEncoding->Flags & INST_P)
+            {
+                Inst.MnemonicName[MnemonicLength++] = '.';
+            }
             
             for(u32 I = 0;
                 I < ArrayCount(InstEncoding->Operands);
@@ -271,28 +293,31 @@ int main(int Argc, char **Argv)
                     {
                         Op->Value <<= 2;
                     }
-                    
                 }
             }
             
             // Extended mnemonics
             if(Inst.Mnemonic == Op_or && Inst.Operands[1].Value == Inst.Operands[2].Value)
             {
-                Inst.Mnemonic = Op_mr;
+                //Inst.Mnemonic = Op_mr;
+                StringCopy(Inst.MnemonicName, "mr");
                 Inst.Operands[2].Type = OperandType_None;
+                
             }
             
             if(Inst.Mnemonic == Op_addis && Inst.Operands[1].Value == 0)
             {
-                Inst.Mnemonic = Op_lis;
+                StringCopy(Inst.MnemonicName, "lis");
+                //Inst.Mnemonic = Op_lis;
                 Inst.Operands[2].Type = OperandType_None;
                 Inst.Operands[1].Type = OperandType_Immediate;
                 Inst.Operands[1].Value = Inst.Operands[2].Value;
             }
             
             // Printing
-            char *MnemonicName = OperationNemonic[Inst.Mnemonic];
-            u32 MnemonicLength = printf("%s", MnemonicName);
+            //char *MnemonicName = OperationNemonic[Inst.Mnemonic];
+            //u32 MnemonicLength = printf("%s", MnemonicName);
+            MnemonicLength = printf("%s", Inst.MnemonicName);
             
             //if(InstEncoding->Flags & INST_P) printf(".");
             

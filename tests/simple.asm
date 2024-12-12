@@ -25,3 +25,21 @@ next:				# Prepare to loop over arguments
 	mr 3,13			# r3 <- r13
 	blr			# go to the address stored in LinkRegister
 	andi. 12, 2, 3
+
+	subfc 1, 2, 3
+	#mulhdu 1, 2, 3
+	addc 1, 2, 3
+	mulhwu 1, 2, 3
+
+	mfcr 3
+	#lwax 12, 2, 2
+	#ldx 1, 2, 3
+	#ldzx 1, 2, 3
+	slw 1, 2, 3
+	
+	cntlzw 1, 2
+	#sld 1, 2, 3
+	and 1, 2, 3
+	cmpl 1, 0, 2, 3
+	subf 1, 2, 3
+
