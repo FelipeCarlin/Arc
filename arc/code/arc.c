@@ -167,15 +167,58 @@ StringCopy(char *A, char *B)
     return Result;
 }
 
+typedef enum extended_operand_flags
+{
+    ExtendedOperandFlags_Immediate,
+    ExtendedOperandFlags_RValue,
+} extended_operand_flags;
+
+typedef struct extended_operand
+{
+    u16 Flags;
+    s16 Value;
+} extended_operand;
+
+typedef struct extended_mnemonic
+{
+    u32 Op;
+    u32 BaseOp;
+    
+    u32 OperandCount;
+    extended_operand Operands[5];
+    
+    u32 NewOperansCount;
+    extended_operand NewOperands[5];
+} extended_mnemonic;
+
+global_variable extended_mnemonic
+ExtendedMnemonics[] = 
+{
+#define EXTEND_MNEMONIC(ExtendedMnemonic, BaseInstruction, ...) {Op_##ExtendedMnemonic, Op_##BaseInstruction, __VA_ARGS__},
+    
+#include "ppc_extended_mnemonic_table.inl"
+};
+
 int main(int Argc, char **Argv)
 {
     loaded_file File = Win32ReadEntireFile("simple.bin");
     PrintHexDump((u8 *)File.Memory, (u32)File.Size);
     
     // TODO:
-    // - Decouple instruction decoding from printing.
+    // + Decouple instruction decoding from printing.
     // - Support extended mnemonics (ie.  mr ra, rb  ->  or ra, rb, rb).
     // - Support object files.
+    // - Assemble.
+    // - Symbols.
+    // - Arrows for branches and jumps.
+    
+    for(u32 I = 0;
+        I < ArrayCount(ExtendedMnemonics);
+        ++I)
+    {
+        extended_mnemonic Mnem = ExtendedMnemonics[I];
+        printf("%s -> %s\n", OperationMnemonic[Mnem.Op], OperationMnemonic[Mnem.BaseOp]);
+    }
     
     u32 InstructionCount = (u32)(File.Size/4);
     u64 Address = 0x80003000;
@@ -250,8 +293,8 @@ int main(int Argc, char **Argv)
         {
             instruction Inst = {};
             Inst.Mnemonic = InstEncoding->Op;
-            u32 MnemonicLength = StringCopy(Inst.MnemonicName, OperationNemonic[InstEncoding->Op]);
-            //Inst.MnemonicName = OperationNemonic[InstEncoding->Op];
+            u32 MnemonicLength = StringCopy(Inst.MnemonicName, OperationMnemonic[InstEncoding->Op]);
+            //Inst.MnemonicName = OperationMnemonic[InstEncoding->Op];
             
             if(InstEncoding->Flags & INST_P)
             {

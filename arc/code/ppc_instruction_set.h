@@ -51,6 +51,9 @@ typedef enum ppc_operation_type
 #define INST(Opcode, ExtendedOpcode, Mnemonic, ...) Op_##Mnemonic,
 #include "ppc_instruction_table.inl"
     
+#define EXTEND_MNEMONIC(ExtendedMnemonic, ...) Op_##ExtendedMnemonic,
+#include "ppc_extended_mnemonic_table.inl"
+    
     Op_Count,
 } ppc_operation_type;
 
@@ -93,7 +96,7 @@ InstructionSet[] =
 };
 
 global_variable char *
-OperationNemonic[] =
+OperationMnemonic[] =
 {
     "None",
     
@@ -101,6 +104,8 @@ OperationNemonic[] =
 #define INSTP(Opcode, ExtendedOpcode, Mnemonic, ...) #Mnemonic,
 #include "ppc_instruction_table.inl"
     
+#define EXTEND_MNEMONIC(ExtendedMnemonic, ...) #ExtendedMnemonic,
+#include "ppc_extended_mnemonic_table.inl"
 };
 
 #define PPC_ENCODING_H
