@@ -16,6 +16,23 @@ EXTEND_MNEMONIC(nop, ori, OPS0(),           OPS3(Imm(0), Imm(0), Imm(0)))
 EXTEND_MNEMONIC(mr,  or,  OPS2(R(0), R(1)), OPS3(R(0), R(1), R(1)))
 
 
+/*
+Sign extended mnemonic
+subic {Rx, Ry, value} -> addic {Rx, Ry, -value}
+
+Size extended mnemonic
+cmpd {0, Rx, Ry}      -> cmp {0, 1, Rx, Ry}
+
+ Comparison extended mnemonic
+tdlti {Rx, value}     -> tdi {16, Rx, value}
+
+ Specific extended mnemonic
+nop                   -> ori {0, 0, 0}
+mr  {Rx, Ry}          -> or  {Rx, Ry, Ry}   
+*/
+
+
+
 #undef OPS0
 #undef OPS1
 #undef OPS2

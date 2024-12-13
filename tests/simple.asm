@@ -1,4 +1,9 @@
 main:
+	ori 0, 0, 1
+	ori 0, 0, 0
+	or 1, 2, 2
+	mr 1, 2
+
 	mflr 27			# r27 <- LinkRegister 
 	mr 13,3			# r13 <- r3	(argc)
 	mr 14,4			# r14 <- r4	(argv)
@@ -42,4 +47,6 @@ next:				# Prepare to loop over arguments
 	and 1, 2, 3
 	cmpl 1, 0, 2, 3
 	subf 1, 2, 3
+
+	nop
 

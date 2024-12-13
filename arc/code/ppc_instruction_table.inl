@@ -68,7 +68,7 @@ SIMPLE_INS(20, rlwimi, M, {FD_RA, FD_RS, FD_SH, FD_MB})
 SIMPLE_INS(21, rlwinm, M, {FD_RA, FD_RS, FD_SH, FD_MB, FD_ME})
 SIMPLE_INS(23, rlwnm,  M, {FD_RA, FD_RS, FD_RB, FD_MB, FD_ME})
 
-SIMPLE_INS(24, ori,  D)
+SIMPLE_INS(24, ori,  D, {FD_RS, FD_RA, FD_UI})
 SIMPLE_INS(25, oris, D)
 SIMPLE_INS(26, xor,  D)
 SIMPLE_INS(27, xors, D)

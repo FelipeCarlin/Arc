@@ -140,7 +140,7 @@ typedef enum operand_type
 typedef struct operand
 {
     operand_type Type;
-    u32 Value;
+    s32 Value;
     
     b32 IsSigned;
 } operand;
@@ -169,7 +169,7 @@ StringCopy(char *A, char *B)
 
 typedef enum extended_operand_flags
 {
-    ExtendedOperandFlags_Immediate,
+    ExtendedOperandFlags_Immediate = 1,
     ExtendedOperandFlags_RValue,
 } extended_operand_flags;
 
@@ -181,14 +181,14 @@ typedef struct extended_operand
 
 typedef struct extended_mnemonic
 {
-    u32 Op;
-    u32 BaseOp;
+    u16 Op;
+    u16 BaseOp;
     
     u32 OperandCount;
     extended_operand Operands[5];
     
-    u32 NewOperansCount;
-    extended_operand NewOperands[5];
+    u32 BaseOperandCount;
+    extended_operand BaseOperands[5];
 } extended_mnemonic;
 
 global_variable extended_mnemonic
@@ -208,9 +208,8 @@ int main(int Argc, char **Argv)
     // + Decouple instruction decoding from printing.
     // - Support extended mnemonics (ie.  mr ra, rb  ->  or ra, rb, rb).
     // - Support object files.
-    // - Assemble.
-    // - Symbols.
     // - Arrows for branches and jumps.
+    // - Hashmaps!
     
     for(u32 I = 0;
         I < ArrayCount(ExtendedMnemonics);
@@ -340,6 +339,96 @@ int main(int Argc, char **Argv)
             }
             
             // Extended mnemonics
+            extended_mnemonic *ExtendedMnem = 0;
+            for(u32 I = 0;
+                I < ArrayCount(ExtendedMnemonics);
+                ++I)
+            {
+                extended_mnemonic *Mnem = ExtendedMnemonics + I;
+                
+                if(Inst.Mnemonic == Mnem->BaseOp)
+                {
+                    b32 MatchOperands = true;
+                    
+                    b32 RValuesSet[8] = {};
+                    s32 RValues[8] = {};
+                    for(u32 I = 0;
+                        I < Mnem->BaseOperandCount;
+                        ++I)
+                    {
+                        if(Mnem->BaseOperands[I].Flags & ExtendedOperandFlags_RValue)
+                        {
+                            u32 RIndex = Mnem->BaseOperands[I].Value;
+                            if(RValuesSet[RIndex])
+                            {
+                                if(RValues[RIndex] != Inst.Operands[I].Value)
+                                {
+                                    MatchOperands = false;
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                RValues[RIndex] = Inst.Operands[I].Value;
+                                RValuesSet[RIndex] = true;
+                            }
+                        }
+                        else if(Mnem->BaseOperands[I].Flags & ExtendedOperandFlags_Immediate)
+                        {
+                            if(Inst.Operands[I].Value != Mnem->BaseOperands[I].Value)
+                            {
+                                MatchOperands = false;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if(MatchOperands)
+                    {
+                        ExtendedMnem = Mnem;
+                        break;
+                    }
+                }
+            }
+            
+            if(ExtendedMnem)
+            {
+                // Change is only "cosmetic", meaning that the underlaying operation 
+                // remains the original.
+                
+                Inst.Mnemonic = ExtendedMnem->Op;
+                StringCopy(Inst.MnemonicName, OperationMnemonic[ExtendedMnem->Op]);
+                
+                //operand TempOps[ArrayCount(Inst.Operands)] = {};
+                u32 RValues[8] = {};
+                
+                operand ZeroOperand = {};
+                for(u32 I = 0;
+                    I < ArrayCount(Inst.Operands);
+                    ++I)
+                {
+                    if(ExtendedMnem->BaseOperands[I].Flags & ExtendedOperandFlags_RValue)
+                    {
+                        RValues[ExtendedMnem->BaseOperands[I].Value] = Inst.Operands[I].Value;
+                    }
+                    Inst.Operands[I] = ZeroOperand;
+                }
+                
+                for(u32 I = 0;
+                    I < ArrayCount(Inst.Operands);
+                    ++I)
+                {
+                    if(ExtendedMnem->Operands[I].Flags & ExtendedOperandFlags_RValue)
+                    {
+                        Inst.Operands[I].Type = OperandType_Register;
+                        Inst.Operands[I].Value = RValues[ExtendedMnem->Operands[I].Value];
+                    }
+                    
+                    //Inst.Operands[I] = ;
+                }
+            }
+            
+            /*
             if(Inst.Mnemonic == Op_or && Inst.Operands[1].Value == Inst.Operands[2].Value)
             {
                 //Inst.Mnemonic = Op_mr;
@@ -356,6 +445,7 @@ int main(int Argc, char **Argv)
                 Inst.Operands[1].Type = OperandType_Immediate;
                 Inst.Operands[1].Value = Inst.Operands[2].Value;
             }
+            */
             
             // Printing
             //char *MnemonicName = OperationNemonic[Inst.Mnemonic];
