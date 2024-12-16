@@ -70,6 +70,8 @@ typedef enum ppc_instruction_flags
     INST_XFX_FORM = (1 << 8),
     
     INST_P        = (1 << 9),
+    INST_OE       = (1 << 10),
+    INST_Rc       = (1 << 11),
 } ppc_instruction_flags;
 
 typedef struct ppc_instruction_encoding

@@ -145,10 +145,17 @@ typedef struct operand
     b32 IsSigned;
 } operand;
 
+enum instruction_flags
+{
+    InstructionFlag_P = (1 << 0),
+    InstructionFlag_O = (1 << 1),
+};
+
 typedef struct instruction
 {
     u16 Mnemonic;
     char MnemonicName[16];
+    b32 Flags;
     
     operand Operands[5];
 } instruction;
@@ -238,7 +245,7 @@ int main(int Argc, char **Argv)
                            ((InstructionBytes << 24)& 0xff000000)); // byte 0 to byte 3
         
         u8 Opcode = Instruction >> (32 - 6);
-        u16 ExtendedOpcode = (Instruction >> (32 - 31)) & 0b1111111111;
+        u16 ExtendedOpcode = (Instruction >> (32 - 31)) & 0b111111111;
         
         // Printing
         printf("\033[2m0x%.8llx\033[0m", Address);
@@ -270,6 +277,7 @@ int main(int Argc, char **Argv)
         printf("\033[0m%*s", BytesSpacing, "");
         
         // Finding instruction format in table
+        // TODO: Replace with hash map or something.
         ppc_instruction_encoding *InstEncoding = 0;
         for(u32 SetIndex = 0;
             SetIndex < ArrayCount(InstructionSet);
@@ -292,12 +300,23 @@ int main(int Argc, char **Argv)
         {
             instruction Inst = {};
             Inst.Mnemonic = InstEncoding->Op;
-            u32 MnemonicLength = StringCopy(Inst.MnemonicName, OperationMnemonic[InstEncoding->Op]);
-            //Inst.MnemonicName = OperationMnemonic[InstEncoding->Op];
             
             if(InstEncoding->Flags & INST_P)
             {
-                Inst.MnemonicName[MnemonicLength++] = '.';
+                Inst.Flags |= InstructionFlag_P;
+                //Inst.MnemonicName[MnemonicLength++] = '.';
+            }
+            
+            if(InstEncoding->Flags & INST_Rc &&
+               Instruction & 0x01)
+            {
+                Inst.Flags |= InstructionFlag_P;
+            }
+            
+            if(InstEncoding->Flags & INST_OE &&
+               Instruction & 0x400)
+            {
+                Inst.Flags |= InstructionFlag_O;
             }
             
             for(u32 I = 0;
@@ -395,11 +414,32 @@ int main(int Argc, char **Argv)
             {
                 // Change is only "cosmetic", meaning that the underlaying operation 
                 // remains the original.
+                ppc_instruction_encoding *TargetInst = 0;
+                for(u32 I = 0;
+                    I < ArrayCount(InstructionSet);
+                    ++I)
+                {
+                    ppc_instruction_encoding *TestInstruction = InstructionSet + I;
+                    if(TestInstruction->Op == ExtendedMnem->BaseOp)
+                    {
+                        TargetInst = TestInstruction;
+                        break;
+                    }
+                }
+                
+                Assert(TargetInst);
                 
                 Inst.Mnemonic = ExtendedMnem->Op;
+                /*
+                for(u32 I = 0;
+                    I < ArrayCount(Inst.MnemonicName);
+                    ++I)
+                {
+                    Inst.MnemonicName[I] = 0;
+                }
                 StringCopy(Inst.MnemonicName, OperationMnemonic[ExtendedMnem->Op]);
+                */
                 
-                //operand TempOps[ArrayCount(Inst.Operands)] = {};
                 u32 RValues[8] = {};
                 
                 operand ZeroOperand = {};
@@ -420,7 +460,17 @@ int main(int Argc, char **Argv)
                 {
                     if(ExtendedMnem->Operands[I].Flags & ExtendedOperandFlags_RValue)
                     {
-                        Inst.Operands[I].Type = OperandType_Register;
+                        u16 Operand = TargetInst->Operands[I];
+                        ppc_field_encoding Encoding = FieldEncodings[Operand];
+                        
+                        u16 Type = 0;
+                        Type |= Encoding.Flags & FieldFlag_Field     ? OperandType_Field : 0;
+                        Type |= Encoding.Flags & FieldFlag_Register  ? OperandType_Register : 0;
+                        Type |= Encoding.Flags & FieldFlag_Immediate ? OperandType_Immediate : 0;
+                        Type |= Encoding.Flags & FieldFlag_Address   ? OperandType_Address : 0;
+                        Type |= Encoding.Flags & FieldFlag_SpecialPurposeRegister   ? OperandType_SpecialPurposeRegister : 0;
+                        
+                        Inst.Operands[I].Type = Type;
                         Inst.Operands[I].Value = RValues[ExtendedMnem->Operands[I].Value];
                     }
                     
@@ -428,24 +478,17 @@ int main(int Argc, char **Argv)
                 }
             }
             
-            /*
-            if(Inst.Mnemonic == Op_or && Inst.Operands[1].Value == Inst.Operands[2].Value)
+            // Build string mnemonic
+            u32 MnemonicLength = StringCopy(Inst.MnemonicName, OperationMnemonic[Inst.Mnemonic]);
+            if(Inst.Flags & InstructionFlag_O)
             {
-                //Inst.Mnemonic = Op_mr;
-                StringCopy(Inst.MnemonicName, "mr");
-                Inst.Operands[2].Type = OperandType_None;
-                
+                Inst.MnemonicName[MnemonicLength++] = 'o';
+            }
+            if(Inst.Flags & InstructionFlag_P)
+            {
+                Inst.MnemonicName[MnemonicLength++] = '.';
             }
             
-            if(Inst.Mnemonic == Op_addis && Inst.Operands[1].Value == 0)
-            {
-                StringCopy(Inst.MnemonicName, "lis");
-                //Inst.Mnemonic = Op_lis;
-                Inst.Operands[2].Type = OperandType_None;
-                Inst.Operands[1].Type = OperandType_Immediate;
-                Inst.Operands[1].Value = Inst.Operands[2].Value;
-            }
-            */
             
             // Printing
             //char *MnemonicName = OperationNemonic[Inst.Mnemonic];

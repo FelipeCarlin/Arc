@@ -1,4 +1,6 @@
 main:
+	add. 12, 2, 3
+	addo 12, 2, 3
 	ori 0, 0, 1
 	ori 0, 0, 0
 	or 1, 2, 2

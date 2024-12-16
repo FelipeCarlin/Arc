@@ -15,6 +15,8 @@
 EXTEND_MNEMONIC(nop, ori, OPS0(),           OPS3(Imm(0), Imm(0), Imm(0)))
 EXTEND_MNEMONIC(mr,  or,  OPS2(R(0), R(1)), OPS3(R(0), R(1), R(1)))
 
+EXTEND_MNEMONIC(li,  addi,  OPS2(R(0), R(1)), OPS3(R(0), Imm(0), R(1)))
+
 
 /*
 Sign extended mnemonic

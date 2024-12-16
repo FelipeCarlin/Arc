@@ -30,6 +30,9 @@
 #define XO INST_XO_FORM
 #define XFX INST_XFX_FORM
 
+#define OE INST_OE
+#define Rc INST_Rc
+
 
 SIMPLE_INS(2,  tdi,    D, {FD_TO, FD_RA, FD_SI})
 SIMPLE_INS(3,  twi,    D, {FD_TO, FD_RA, FD_SI})
@@ -102,6 +105,12 @@ EXTEND_INS(31, 54,  dcbst, X)   // Book II
 EXTEND_INS(31, 55,  lwzux, X,   {FD_RT, FD_RA, FD_RB})
 EXTEND_INS(31, 58, cntlzd, X,   {FD_RA, FD_RS})
 EXTEND_INS(31, 60,   andc, X,   {FD_RA, FD_RS, FD_RB})
+
+//
+//
+
+EXTEND_INS(31, 266,   add, XO|OE|Rc,  {FD_RT, FD_RA, FD_RB})
+
 //
 //
 
@@ -147,3 +156,7 @@ SIMPLE_INS(47, stmw, D)
 #undef XL
 #undef XO
 #undef XFX
+
+
+#undef OE
+#undef Rc
