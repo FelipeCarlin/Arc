@@ -20,7 +20,7 @@ FIELD(AA,  30, 31, A)
 FIELD(BA,  11, 16, F)
 FIELD(BB,  16, 21, F)
 
-FIELD(BD,  16, 30, I|S)
+FIELD(BD,  16, 30, A|S|Sh)
 
 FIELD(BF,  6,  9,  F)
 FIELD(BFA, 11, 14, F)
@@ -42,14 +42,14 @@ FIELD(FRB, 16, 21, R)
 
 
 
-FIELD(LI,  6,  30, A)
+FIELD(LI,  6,  30, A|S|Sh)
 
-FIELD(LEV, 20, 27, R)
+FIELD(LEV, 20, 27, I)
 
 FIELD(RT,  6,  11, R)
 FIELD(RS,  6,  11, R)
 FIELD(L,   10, 11, I|S)
-FIELD(TO,  6,  11, R)
+FIELD(TO,  6,  11, F)
 FIELD(RA,  11, 16, R)
 
 FIELD(SI,  16, 32, I|S)
@@ -59,12 +59,12 @@ FIELD(UI,  16, 32, I)
 FIELD(TH,  7,  11, I|S)
 FIELD(RB,  16, 21, R)
 FIELD(NB,  16, 21, I|S)
-FIELD(SH,  16, 21, I|S)
+FIELD(SH,  16, 21, I)
 FIELD(U,   16, 20, I)
 FIELD(Rc,  31, 32, I|S)
 
-FIELD(MB,  21, 26, I|S)
-FIELD(ME,  26, 31, I|S)
+FIELD(MB,  21, 26, I)
+FIELD(ME,  26, 31, I)
 
 FIELD(SPR, 11, 21, SPR)
 

@@ -72,40 +72,44 @@ typedef enum ppc_instruction_flags
     INST_P        = (1 << 9),
     INST_OE       = (1 << 10),
     INST_Rc       = (1 << 11),
+    INST_LK       = (1 << 12),
+    INST_AA       = (1 << 13),
+
+    INST_64       = (1 << 14),
 } ppc_instruction_flags;
 
 typedef struct ppc_instruction_encoding
 {
     u16 Opcode;
     u16 ExtendedOpcode;
-    
+
     ppc_operation_type Op;
-    
+
     //u16 Form;
     ppc_instruction_flags Flags;
-    
+
     u16 Operands[5];
-    
+
     void (*CustomDecoding)(void *FormatData);
 } ppc_instruction_encoding;
 
 global_variable ppc_instruction_encoding
-InstructionSet[] = 
+InstructionSet[] =
 {
-    
+
 #include "ppc_instruction_table.inl"
-    
+
 };
 
 global_variable char *
 OperationMnemonic[] =
 {
     "None",
-    
+
 #define INST(Opcode, ExtendedOpcode, Mnemonic, ...) #Mnemonic,
 #define INSTP(Opcode, ExtendedOpcode, Mnemonic, ...) #Mnemonic,
 #include "ppc_instruction_table.inl"
-    
+
 #define EXTEND_MNEMONIC(ExtendedMnemonic, ...) #ExtendedMnemonic,
 #include "ppc_extended_mnemonic_table.inl"
 };
